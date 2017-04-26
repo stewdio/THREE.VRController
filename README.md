@@ -31,6 +31,13 @@ that support WebVR — as well as download and setup instructions — see
 3. Working knowledge of [THREE.js](https://threejs.org/).
 
 
+Try it now!
+------------------------------------------------------------------------------
+Already on a VR rig with a WebVR-capable browser? Just point your browser to
+[https://stewdio.github.io/THREE.VRController/](https://stewdio.github.io/THREE.VRController/)
+to experience this code in action.
+
+
 Run locally
 ------------------------------------------------------------------------------
 The easiest way to fire this up on your own desktop machine is to start a 
