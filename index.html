@@ -232,6 +232,7 @@ function update(){
 	
 	effect.requestAnimationFrame( update )
 	torus.rotation.y += 0.002
+	if( torus.rotation.y > Math.PI ) torus.rotation.y -= ( Math.PI * 2 )//  Keep DAT GUI display tidy!
 	controls.update()
 	effect.render( scene, camera )
 }
