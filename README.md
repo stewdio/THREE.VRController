@@ -3,6 +3,8 @@
 THREE.VRController
 ==============================================================================
 
+![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.png "THREE.VRController")
+
 __Generic VR controller handler for building [WebVR](https://webvr.rocks/) 
 experiences with [THREE.js](https://threejs.org/).__ 
 Wraps the [Web Gamepad API](https://www.w3.org/TR/gamepad/) to handle gamepad
