@@ -105,7 +105,7 @@ var floor = new THREE.Mesh(
 		wireframe: true
 	})
 )
-floor.position.y = - 0.1
+floor.position.y = -0.1
 scene.add( floor )
 
 var light = new THREE.DirectionalLight()
@@ -136,8 +136,8 @@ gui.add( torus.rotation, 'y', -Math.PI, Math.PI ).step( 0.001 ).name( 'Rotation'
 
 
 
-//  Check this out: When THREE.VRController find a new controller
-//  it will emit a custom 'vr controller connected' event on the
+//  Check this out: When THREE.VRController finds a new controller
+//  it will emit a custom “vr controller connected” event on the
 //  global window object. It uses this to pass you the controller
 //  instance and from there you do what you want with it.
 
@@ -194,13 +194,13 @@ window.addEventListener( 'vr controller connected', function( event ){
 	//  Allow this controller to interact with DAT GUI.
 	
 	var guiInputHelper = dat.GUIVR.addInputObject( controller )
-    scene.add( guiInputHelper )
+	scene.add( guiInputHelper )
 
 
-    //  Button events. How easy is this?!
-    //  We’ll just use the “primary” button -- whatever that might be ;)
-    //  Check out the THREE.VRController.supported{} object to see
-    //  all the named buttons we’ve already mapped for you!
+	//  Button events. How easy is this?!
+	//  We’ll just use the “primary” button -- whatever that might be ;)
+	//  Check out the THREE.VRController.supported{} object to see
+	//  all the named buttons we’ve already mapped for you!
 
 	controller.addEventListener( 'primary press began', function( event ){
 
