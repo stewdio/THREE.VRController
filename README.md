@@ -45,10 +45,10 @@ Do it yourself
 [VRController.js](https://github.com/stewdio/THREE.VRController/raw/master/VRController.js) file to your existing Three.js project and use our 
 [index.html](https://github.com/stewdio/THREE.VRController/raw/master/index.html) 
 example file as your guide for the following steps.
-2. Add the `THREE.VRController.update()` function to your animation loop.
+2. Add a `THREE.VRController.update()` function call to your animation loop.
 3. Add a listener for the `"vr controller connected"` global event. This is 
 how you will receive the controller object instance—which is a 
-`THREE.Object3D`. This means you can include it in your scene, attach meshes 
+`THREE.Object3D`. This means you can add it to your scene, attach meshes 
 to it, and so on.
 4. When you receive the controller object instance you must give it some 
 additional information depending on the type of controller. For 6DOF (room 
@@ -60,7 +60,8 @@ For 3DOF (seated) rigs you must provide a reference to the camera so the
 controller can use the headset’s live position and orientation to guess where 
 it ought to be: `controller.head = camera` There’s no penalty for providing 
 the controller instance with both `standingMatrix` and `head` properties as 
-we do in the example.
+we do in the 
+[example](https://github.com/stewdio/THREE.VRController/raw/master/index.html).
 5. Explore the available touch, press, and trackpad events by assigning
 `THREE.VRController.verbosity = 1`.
 You’ll now see a flood of verbose comments in the JavaScript console as you
