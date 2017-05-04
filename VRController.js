@@ -333,7 +333,8 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 	//  Let’s give the controller a little rumble; some haptic feedback to 
 	//  let the user know it’s connected and happy.
 
-	if( controller.gamepad.hapticActuators ) controller.gamepad.hapticActuators[ 0 ].pulse( 0.1, 300 );
+	var hapticActuators = controller.gamepad.hapticActuators;
+	if( hapticActuators && hapticActuators[ 0 ] ) hapticActuators[ 0 ].pulse( 0.1, 300 );
 
 
 	//  Now we’ll broadcast a global connection event.
