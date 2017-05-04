@@ -211,9 +211,22 @@ THREE.VRController.prototype.update = function(){
 
 	//  Once connected a gamepad will have a not-undefined pose
 	//  but that pose will be null until a user action ocurrs.
-	//  If it’s all null then no point in going any futher here. 
+	//  Similarly if a gamepad has powered off or disconnected
+	//  the pose will contain all nulls.
+	//  We have to check this ourselves because the Gamepad API
+	//  might not report a disconnection reliably :'(
+	//  Either way, if we’re all null let’s bail by returning early.
 
-	if( pose === null || ( pose.orientation === null && pose.position === null )) return;
+	if( pose === null || ( pose.orientation === null && pose.position === null )){
+
+		if( this.hasPosed === true ) THREE.VRController.onGamepadDisconnect( gamepad )
+		return;
+	}
+	if( this.hasPosed !== true ){
+
+		this.hasPosed = true;
+		this.visible  = true;
+	}
 
 
 	//  If we’ve gotten to here then gamepad.pose has a definition
@@ -330,7 +343,7 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 	//  if we don’t already have a reference to it?!
 
 	if( scope.verbosity >= 0.5 ) console.log( 'vr controller connected', controller );
-	controller.visible = true;
+	controller.visible = false;
 	window.dispatchEvent( new CustomEvent( 'vr controller connected', { detail: controller }));
 }
 THREE.VRController.onGamepadDisconnect = function( gamepad ){
@@ -344,12 +357,21 @@ THREE.VRController.onGamepadDisconnect = function( gamepad ){
 
 
 	//  Now we can broadcast the disconnection event on the controller itself
-	//  and also delete from our controllers object. Goodbye!
+	//  and also “delete” from our controllers object. Goodbye!
 
 	if( scope.verbosity >= 0.5 ) console.log( 'vr controller disconnected', controller );
-	controller.visible = false;
 	controller.dispatchEvent({ type: 'disconnected', controller: controller });
-	delete controller;
+	scope.controllers[ gamepad.index ] = undefined;
+
+
+	//  I’ve taken the following out of use because perhaps you want to 
+	//  fade out your controllers? Or have them fall upwards into the heavens
+	//  from whence they came? You don’t want them removed or made invisible
+	//  immediately. So just listen for the 'vr controller disconnected' event
+	//  and do as you will :)
+
+	//controller.visible = false;
+	//controller.parent.remove( controller );
 }
 
 
