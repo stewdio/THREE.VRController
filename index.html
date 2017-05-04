@@ -212,6 +212,15 @@ window.addEventListener( 'vr controller connected', function( event ){
 		event.target.userData.mesh.material.color.setHex( meshColorOff )
 		guiInputHelper.pressed( false )
 	})
+
+
+	//  Daddy, what happens when we die?
+
+	controller.addEventListener( 'disconnected', function( event ){
+
+		console.log('DISCONNECT!~!!!!', controller.parent.remove)
+		controller.parent.remove( controller )
+	})
 })
 
 
