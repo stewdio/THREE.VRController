@@ -151,12 +151,17 @@ window.addEventListener( 'vr controller connected', function( event ){
 	scene.add( controller )
 
 
-	//  For 6DOF VR rigs:
+	//  HEY HEY HEY! This is important. You need to make sure you do this.
+	//  For 6DOF (room-scale) controllers we need to set the standingMatrix
+	//  otherwise you’ll wonder why your controller appears on the floor
+	//  instead of in your hands!
 
 	controller.standingMatrix = window.controls.getStandingMatrix()
 
 
-	//  For 3DOF VR rigs:
+	//  And for 3DOF (seated) controllers you need to set the controller.head
+	//  to reference your camera. That way we can make an educated guess where
+	//  your hand ought to appear based on the camera’s rotation. 
 	
 	controller.head = window.camera
 
@@ -218,7 +223,6 @@ window.addEventListener( 'vr controller connected', function( event ){
 
 	controller.addEventListener( 'disconnected', function( event ){
 
-		console.log('DISCONNECT!~!!!!', controller.parent.remove)
 		controller.parent.remove( controller )
 	})
 })
