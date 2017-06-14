@@ -88,4 +88,12 @@ locally. You can shutdown the local server by returning to the command line
 and hitting Control + C.
 
 
+Notes on Chromium’s Gamepad API
+------------------------------------------------------------------------------
+If you’re building WebVR experiences and targeting the 
+[WebVR build of Chromium](https://webvr.info/get-chrome/) you may want to read
+my Medium post about its quirky behavior and how VRController compensates for 
+it: [WebVR controllers and Chromium’s Gamepad API](https://medium.com/@stew_rtsmith/webvr-controllers-and-chromiums-gamepad-api-6c9adc633f38).
+
+
 
