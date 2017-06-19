@@ -126,6 +126,7 @@ THREE.VRController = function( gamepad ){
 
 		if( hand !== controller.gamepad.hand ){
 
+			if( verbosity >= 0.5 ) console.log( prefix +'hand changed from "'+ hand +'" to "'+ controller.gamepad.hand +'"' );
 			hand = controller.gamepad.hand;
 			controller.dispatchEvent({ type: 'hand changed', hand: hand });
 		}
