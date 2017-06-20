@@ -519,9 +519,7 @@ THREE.VRController.supported = {
 
 
 			//  Oculus’s thumbstick has axes values and is also a button,
-			//  similar to Vive’s thumbpad.
-			//  But unlike Vive’s thumbpad it only has a binary touch value.
-			//  The press value is never set to true.
+			//  with touch and press states similar to Vive’s thumbpad.
 			//  X axis: -1 = Left, +1 = Right
 			//  Y axis: -1 = Top,  +1 = Bottom  NOTE THIS IS FLIPPED FROM VIVE!
 
