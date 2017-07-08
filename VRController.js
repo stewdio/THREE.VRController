@@ -185,23 +185,24 @@ THREE.VRController = function( gamepad ){
 			}
 		})
 	}
+
+
+	//  Ok, we’ve got button events covered.
+	//  But what if you want to react to something WHILE or AS LONG AS a button is pressed?
+	//  Sure, you could set up your own trip boolean and use the above events....
+	//  Or you could just check the button’s current state yourself in your update loop!
+
 	this.getButton = function( buttonNameOrIndex ){
 
 		if( typeof buttonNameOrIndex === 'number' ) return buttons[ buttonNameOrIndex ]
 		else if( typeof buttonNameOrIndex === 'string' ){
 
+			if( buttonNameOrIndex === 'primary' ) buttonNameOrIndex = primaryButtonName
 			return buttons.find( function( button ){
 
 				return button.name === buttonNameOrIndex
 			})
 		}
-	}
-	this.getButtonState = function( buttonName ){
-
-		return buttons.find( function( button ){
-
-			return button.name === buttonName;
-		})
 	}
 }
 THREE.VRController.prototype = Object.create( THREE.Object3D.prototype );
