@@ -86,6 +86,14 @@ THREE.VRController = function( gamepad ){
 		primaryButtonName = supported.primary;
 	}
 
+	
+	//  This will allow you to listen for 'primary press began', etc.
+	//  even if we don’t explicitly support this controller model.
+	//  That is ... if they follow the convention of putting the primary
+	//  button in position 0!.
+
+	else primaryButtonName = 'button_0'
+
 
 	//  It is crucial that we have a reference to the actual gamepad!
 	//  In addition to requiring its .pose for position and orientation
