@@ -7,10 +7,8 @@
 		<style>
 			body { margin: 0; overflow: hidden; }
 		</style>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r85/build/three.js"></script>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r85/examples/js/controls/VRControls.js"></script>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r85/examples/js/effects/VREffect.js"></script>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r85/examples/js/vr/WebVR.js"></script>
+		<script src="https://cdn.rawgit.com/mrdoob/three.js/r86/build/three.js"></script>
+		<script src="https://cdn.rawgit.com/mrdoob/three.js/r86/examples/js/vr/WebVR.js"></script>
 		<script src="https://cdn.rawgit.com/dataarts/dat.guiVR/master/build/datguivr.js"></script>
 		<script src="VRController.js"></script>
 	</head>
@@ -33,31 +31,33 @@
 //  Here’s how to download and configure one that does:
 //  https://webvr.rocks
 
-if( WEBVR.isAvailable() === false ) document.body.appendChild( WEBVR.getMessage() )
+WEBVR.checkAvailability().catch( function( message ){
+
+	document.body.appendChild( WEBVR.getMessageContainer( message ))
+})
 
 
 //  Regardless, let’s kick off the Three.js basics here:
 
-var camera, scene, renderer, effect, controls
+var camera, scene, renderer, controls
 
 
-//  We need a renderer, and our VREffect ... effect.
+//  We need a renderer.
 
 renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setClearColor( 0x101010 )
 renderer.setPixelRatio( window.devicePixelRatio )
 renderer.setSize( window.innerWidth, window.innerHeight )
+renderer.vr.enabled = true//  Well that’s pretty important! (New in r86.)
+renderer.vr.standing = true
 document.body.appendChild( renderer.domElement )
-effect = new THREE.VREffect( renderer )
 
 
 //  Camera, VRControls to move the camera as your headset moves,
 // (NOTE that VRControls and VRController are NOT related!!),
 //  and a Scene to render it to.
 
-camera   = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10 )
-controls = new THREE.VRControls( camera )
-controls.standing = true
+camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10 )
 scene  = new THREE.Scene()
 
 
@@ -66,6 +66,7 @@ scene  = new THREE.Scene()
 
 WEBVR.getVRDisplay( function( display ){
 
+  renderer.vr.setDevice( display )
 	document.body.appendChild( WEBVR.getButton( display, renderer.domElement ))
 })
 
@@ -76,7 +77,7 @@ function onWindowResize(){
 
 	camera.aspect = window.innerWidth / window.innerHeight
 	camera.updateProjectionMatrix()
-	effect.setSize( window.innerWidth, window.innerHeight )
+	renderer.setSize( window.innerWidth, window.innerHeight )
 }
 window.addEventListener( 'resize', onWindowResize, false )
 
@@ -94,8 +95,8 @@ var torus = new THREE.Mesh(
 torus.position.set( -0.25, 1.4, -1.5 )
 scene.add( torus )
 
-var floor = new THREE.Mesh( 
-	
+var floor = new THREE.Mesh(
+
 	new THREE.BoxGeometry( 6, 0.2, 6, 6, 1, 6 ),
 	new THREE.MeshStandardMaterial({
 
@@ -124,13 +125,11 @@ scene.add( new THREE.HemisphereLight( 0x909090, 0x404040 ))
 
 dat.GUIVR.enableMouse( camera )
 var gui = dat.GUIVR.create( 'Settings' )
-gui.position.x =  0.15
-gui.position.z = -1.00
-gui.position.y =  1.5
-gui.rotation.y = -Math.PI / 4
+gui.position.set( 0.2, 0.8, -1 )
+gui.rotation.set( Math.PI / -6, 0, 0 )
 scene.add( gui )
 gui.add( torus.position, 'x', -1, 1 ).step( 0.001 ).name( 'Position X' )
-gui.add( torus.position, 'y', -1, 1 ).step( 0.001 ).name( 'Position Y' )
+gui.add( torus.position, 'y', -1, 2 ).step( 0.001 ).name( 'Position Y' )
 gui.add( torus.rotation, 'y', -Math.PI, Math.PI ).step( 0.001 ).name( 'Rotation' ).listen()
 
 
@@ -142,7 +141,7 @@ gui.add( torus.rotation, 'y', -Math.PI, Math.PI ).step( 0.001 ).name( 'Rotation'
 //  instance and from there you do what you want with it.
 
 window.addEventListener( 'vr controller connected', function( event ){
-	
+
 
 	//  Here it is, your VR controller instance.
 	//  It’s really a THREE.Object3D so you can just add it to your scene:
@@ -152,21 +151,22 @@ window.addEventListener( 'vr controller connected', function( event ){
 
 
 	//  HEY HEY HEY! This is important. You need to make sure you do this.
-	//  For 6DOF (room-scale) controllers we need to set the standingMatrix
+	//  For standing experiences (not seated) we need to set the standingMatrix
 	//  otherwise you’ll wonder why your controller appears on the floor
-	//  instead of in your hands!
+	//  instead of in your hands! And for seated experiences this will have no
+	//  effect, so safe to do either way:
 
-	controller.standingMatrix = window.controls.getStandingMatrix()
+	controller.standingMatrix = renderer.vr.getStandingMatrix()
 
 
 	//  And for 3DOF (seated) controllers you need to set the controller.head
 	//  to reference your camera. That way we can make an educated guess where
-	//  your hand ought to appear based on the camera’s rotation. 
-	
+	//  your hand ought to appear based on the camera’s rotation.
+
 	controller.head = window.camera
 
 
-	//  Right now your controller has no visual. 
+	//  Right now your controller has no visual.
 	//  It’s just an empty THREE.Object3D.
 	//  Let’s fix that!
 
@@ -175,7 +175,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 	meshColorOn  = 0xFFFF00,
 	controllerMaterial = new THREE.MeshStandardMaterial({
 
-		color: meshColorOff, 
+		color: meshColorOff,
 		shading: THREE.FlatShading
 	}),
 	controllerMesh = new THREE.Mesh(
@@ -197,7 +197,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 
 
 	//  Allow this controller to interact with DAT GUI.
-	
+
 	var guiInputHelper = dat.GUIVR.addInputObject( controller )
 	scene.add( guiInputHelper )
 
@@ -213,7 +213,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 		guiInputHelper.pressed( true )
 	})
 	controller.addEventListener( 'primary press ended', function( event ){
-		
+
 		event.target.userData.mesh.material.color.setHex( meshColorOff )
 		guiInputHelper.pressed( false )
 	})
@@ -242,14 +242,12 @@ function update(){
 
 	//  And here’s your standard update and render stuff.
 	//  Nothing new to see here.
-	
-	effect.requestAnimationFrame( update )
+
 	torus.rotation.y += 0.002
 	if( torus.rotation.y > Math.PI ) torus.rotation.y -= ( Math.PI * 2 )//  Keep DAT GUI display tidy!
-	controls.update()
-	effect.render( scene, camera )
+	renderer.render( scene, camera )
 }
-update()
+renderer.animate( update )
 
 
 

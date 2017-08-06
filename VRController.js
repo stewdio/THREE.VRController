@@ -292,6 +292,12 @@ THREE.VRController.prototype.update = function(){
 	//  BUTTON EVENTS.
 
 	this.listenForButtonEvents();
+
+
+	//  If you’ve ever wanted to run the same function over and over --
+	//  once per update loop -- now’s your big chance.
+
+	if( typeof this.updateCallback === 'function' ) this.updateCallback();
 }
 
 
