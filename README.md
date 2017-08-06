@@ -6,34 +6,35 @@ THREE.VRController
 ![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.png "THREE.VRController")
 
 __Generic VR controller handler for building [WebVR](https://webvr.rocks/)
-experiences with [THREE.js](https://threejs.org/).__
+experiences with [Three.js](https://threejs.org/).__
 Wraps the [Web Gamepad API](https://www.w3.org/TR/gamepad/) to handle gamepad
 discovery, emits a controller (`THREE.Object3D`) instance upon discovery,
 handles controller updates for position and orientation (including
 3[DOF](https://en.wikipedia.org/wiki/Degrees_of_freedom_(mechanics)) rigs
 via the `OrientationArmModel`). Watches for updates on axes and button states
 and emits corresponding events on the controller instance. Adds explicit support
-for[HTC Vive](https://www.vive.com),
-[Oculus Rift](https://www.oculus.com/rift/),
+for [HTC Vive](https://www.vive.com),
+[Oculus Rift + Touch](https://www.oculus.com/rift/),
 [Google Daydream](https://vr.google.com/daydream/),
-[Samsung GearVR](http://www.samsung.com/GearVR),
-and implicit support for any similar controllers. Submitted to
+with implicit support for
+[Samsung GearVR](http://www.samsung.com/GearVR)
+and similar devices. Submitted to
 [Three.js](https://github.com/mrdoob/three.js/) as
 [pull request #10991](https://github.com/mrdoob/three.js/pull/10991)
-on Saturday, 11 March 2017.
+on Saturday, 11 March 2017. Compatible with Three.js __r86__.
 
 
 Requirements
 ------------------------------------------------------------------------------
 1. Virtual Reality rig with 3DOF or 6DOF controllers such as the
 [HTC Vive](https://www.vive.com/),
-[Oculus Rift](https://www.oculus.com/rift/),
+[Oculus Rift + Touch](https://www.oculus.com/rift/),
 [Google Daydream](https://vr.google.com/daydream/),
 [Samsung GearVR](http://www.samsung.com/GearVR), or similar devices.
 2. WebVR-capable browser. For the latest list of browsers
 that support WebVR — as well as download and setup instructions — see
 [WebVR Rocks](https://webvr.rocks/).
-3. Working knowledge of [THREE.js](https://threejs.org/).
+3. Working knowledge of [Three.js](https://threejs.org/).
 
 
 Try it now!
