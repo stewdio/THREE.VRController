@@ -125,10 +125,8 @@ scene.add( new THREE.HemisphereLight( 0x909090, 0x404040 ))
 
 dat.GUIVR.enableMouse( camera )
 var gui = dat.GUIVR.create( 'Settings' )
-gui.position.x =  0.15
-gui.position.z = -1.00
-gui.position.y =  1.50
-gui.rotation.y = -Math.PI / 4
+gui.position.set( 0.2, 0.8, -1 )
+gui.rotation.set( Math.PI / -6, 0, 0 )
 scene.add( gui )
 gui.add( torus.position, 'x', -1, 1 ).step( 0.001 ).name( 'Position X' )
 gui.add( torus.position, 'y', -1, 2 ).step( 0.001 ).name( 'Position Y' )
