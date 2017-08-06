@@ -49,6 +49,7 @@ renderer.setClearColor( 0x101010 )
 renderer.setPixelRatio( window.devicePixelRatio )
 renderer.setSize( window.innerWidth, window.innerHeight )
 renderer.vr.enabled = true//  Well that’s pretty important! (New in r86.)
+renderer.vr.standing = true
 document.body.appendChild( renderer.domElement )
 
 
@@ -162,7 +163,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 
 	//  And for 3DOF (seated) controllers you need to set the controller.head
 	//  to reference your camera. That way we can make an educated guess where
-	//  your hand ought to appear based on the camera’s rotation. 
+	//  your hand ought to appear based on the camera’s rotation.
 
 	controller.head = window.camera
 
