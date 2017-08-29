@@ -86,7 +86,7 @@ THREE.VRController = function( gamepad ){
 		primaryButtonName = supported.primary;
 	}
 
-	
+
 	//  This will allow you to listen for 'primary press began', etc.
 	//  even if we don’t explicitly support this controller model.
 	//  That is ... if they follow the convention of putting the primary
@@ -394,7 +394,7 @@ THREE.VRController.update = function(){
 
 
 	//  Before we do anything we ought to see if getGamepads even exists.
-	// (Perhaps in addition to actual VR rigs you’re also supporting 
+	// (Perhaps in addition to actual VR rigs you’re also supporting
 	//  iOS devices via magic window?) If it doesn’t exist let’s bail:
 
 	if( navigator.getGamepads === undefined ) return;
@@ -422,7 +422,8 @@ THREE.VRController.update = function(){
 		//  paranoid. Best to just verify the pose object is really there.
 
 		gamepad = gamepads[ i ];
-		if( gamepad      !== null &&
+		if( gamepad      !== undefined &&//  Just for you, Microsoft Edge!
+			gamepad      !== null &&     //  Meanwhile Chrome and Firefox do it this way.
 			gamepad.pose !== undefined &&
 			gamepad.pose !== null ){
 
@@ -835,6 +836,3 @@ OrientationArmModel.prototype.quatAngle_ = function( q1, q2 ){
 	vec2.applyQuaternion( q2 );
 	return vec1.angleTo( vec2 );
 }
-
-
-

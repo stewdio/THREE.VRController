@@ -7,8 +7,8 @@
 		<style>
 			body { margin: 0; overflow: hidden; }
 		</style>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r86/build/three.js"></script>
-		<script src="https://cdn.rawgit.com/mrdoob/three.js/r86/examples/js/vr/WebVR.js"></script>
+		<script src="https://cdn.rawgit.com/mrdoob/three.js/r87/build/three.js"></script>
+		<script src="https://cdn.rawgit.com/mrdoob/three.js/r87/examples/js/vr/WebVR.js"></script>
 		<script src="https://cdn.rawgit.com/dataarts/dat.guiVR/master/build/datguivr.js"></script>
 		<script src="VRController.js"></script>
 	</head>
@@ -66,7 +66,7 @@ scene  = new THREE.Scene()
 
 WEBVR.getVRDisplay( function( display ){
 
-  renderer.vr.setDevice( display )
+	renderer.vr.setDevice( display )
 	document.body.appendChild( WEBVR.getButton( display, renderer.domElement ))
 })
 
@@ -175,8 +175,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 	meshColorOn  = 0xFFFF00,
 	controllerMaterial = new THREE.MeshStandardMaterial({
 
-		color: meshColorOff,
-		shading: THREE.FlatShading
+		color: meshColorOff
 	}),
 	controllerMesh = new THREE.Mesh(
 
@@ -189,6 +188,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 		controllerMaterial
 	)
 
+	controllerMaterial.flatShading = true
 	controllerMesh.rotation.x = -Math.PI / 2
 	handleMesh.position.y = -0.05
 	controllerMesh.add( handleMesh )
