@@ -16,20 +16,30 @@
 
 
 	Why is this useful?
-	1. This creates a THREE.Object3D() per gamepad and passes it to you
-	through an event for inclusion in your scene. It then handles copying the
-	live positions and orientations from the gamepad to this Object3D.
-	2. It also broadcasts button events to you on the Object3D instance.
-	For supported devices button names are mapped to the buttons array when
-	possible for convenience. (And this support is easy to extend.)
+	
+	1. This creates a THREE.Object3D() per connected Gamepad instance and 
+	   passes it to you through a Window event for inclusion in your scene. 
+	   It then handles copying the live positions and orientations from the
+	   Gamepad instance to this Object3D.
+	2. It also broadcasts Gamepad button and axes events to you on this
+	   Object3D instance. For your convenience button names are mapped to
+	   objects in the buttons array on supported devices. (And this support 
+	   is easy to extend.) For implicitly supported devices you can continue
+	   to use the buttons array indexes.
+	3. This one JS file explicitly supports several existing VR controllers,
+	   and implicitly supports any controllers that operate similarly!
 
+	
 	What do I have to do?
+	
 	1. Include THREE.VRController.update() in your animation loop and listen
-	for the appropriate events.
+	   for controller connection events like so:
+	   window.addEventlistener('vr controller connected', (controller)=>{}).
 	2. When you receive a controller instance -- again, just an Object3D --
-	you ought to set its standingMatrix property to equal your
-	controls.getStandingMatrix() and if you are expecting 3DOF controllers set
-	its head property equal to your camera.
+	   you ought to set its standingMatrix property equal to your
+	   renderer.vr.getStandingMatrix(). If you are expecting a 3DOF controller
+	   you must set its head property equal to your camera.
+	3. Experiment and HAVE FUN!
 
 
 */
@@ -48,26 +58,28 @@ THREE.VRController = function( gamepad ){
 
 	var
 	supported,
-	style,
+	handedness  = '',
+	axes        = [],
+	axesMaps    = [],
+	buttons     = [],
 	buttonNames = [],
-	primaryButtonName,
-	axes     = [ 0, 0 ],
-	buttons  = [],
-	hand     = '';
+	buttonNamePrimary
+
+	THREE.Object3D.call( this )
+	this.matrixAutoUpdate = false
 
 
-	THREE.Object3D.call( this );
-	this.matrixAutoUpdate = false;
+	//  ATTENTION !
+	//
+	//  You ought to overwrite these TWO special properties on the instance in
+	//  your own code. For example for 6DOF controllers:
+	//    controller.standingMatrix = renderer.vr.getStandingMatrix()
+	//  And for 3DOF controllers:
+	//    controller.head = camera
+	//  Quick FYI: “DOF” means “Degrees of Freedom”. If you can rotate about 
+	//  3 axes and also move along 3 axes then 3 + 3 = 6 degrees of freedom.
 
-
-	//  These are special properties you ought to overwrite on the instance
-	//  in your own code. For example:
-	//    controller.standingMatrix = controls.getStandingMatrix()//  Necessary for 6DOF controllers.
-	//    controller.head = camera//  Necessary for 3DOF controllers.
-	//  Quick FYI: “DOF” means “Degrees of Freedom”. If you can rotate about 3 axes
-	//  and also move along 3 axes then 3 + 3 = 6 degrees of freedom.
-
-	this.standingMatrix = new THREE.Matrix4();
+	this.standingMatrix = new THREE.Matrix4()
 	this.head = {
 
 		position:   new THREE.Vector3(),
@@ -75,79 +87,223 @@ THREE.VRController = function( gamepad ){
 	}
 
 
-	//  Do we recognize this type of controller based on its gamepad.id string?
-	//  If not we’ll still roll with it, just the buttons won’t be mapped.
+	//  It is crucial that we have a reference to the actual gamepad.
+	//  In addition to requiring its .pose for position and orientation
+	//  updates, it also gives us all the goodies like .id, .index,
+	//  and maybe best of all... haptics!
 
-	supported = THREE.VRController.supported[ gamepad.id ];
+	this.gamepad = gamepad
+	this.name    = gamepad.id
+	this.dof     = 3 * ( +gamepad.pose.hasOrientation + +gamepad.pose.hasPosition )
+
+
+	//  Setup states so we can watch for change events.
+	//  This includes handedness, axes, and buttons.
+
+	handedness = gamepad.hand
+
+
+	//  Note that the plural of axis is axes -- and that is not only a source
+	//  of confusion for non-native English speakers, it trips me up too.
+	//  First, let’s copy the Gamepad’s axes values into our own array.
+
+	axes.byName = {}
+	gamepad.axes.forEach( function( axis, i ){
+
+		axes[ i ] = axis
+	})
+
+
+	//  Similarly we’ll create a default set of button objects.
+
+	buttons.byName = {}
+	gamepad.buttons.forEach( function( button, i ){
+
+		buttons[ i ] = {
+
+			name:     'button_'+ i,
+			value:     button.value,
+			isTouched: button.touched,
+			isPressed: button.pressed,
+			isPrimary: false
+		}
+	})
+
+
+	//  Do we recognize this type of controller based on its gamepad.id?
+	//  If not we’ll still roll with it, we just won’t have axes and buttons
+	//  mapped to convenience strings. No biggie.
+
+	supported = THREE.VRController.supported[ gamepad.id ]
 	if( supported !== undefined ){
 
-		style = supported.style;
-		buttonNames = supported.buttons;
-		primaryButtonName = supported.primary;
+		this.style = supported.style
+		if( supported.axes !== undefined ){
+
+			supported.axes.forEach( function( axesMap ){
+
+				axes.byName[ axesMap.name ] = axesMap.indexes
+			})
+		}
+		if( supported.buttons !== undefined ){
+
+			supported.buttons.forEach( function( buttonName, i ){
+
+				buttons[ i ].name = buttonName
+			})
+		}
+		buttonNamePrimary = supported.primary
 	}
 
 
 	//  This will allow you to listen for 'primary press began', etc.
 	//  even if we don’t explicitly support this controller model.
-	//  That is ... if they follow the convention of putting the primary
-	//  button in position 0!.
+	//  Right now convention seems to be that button #0 will be a thumbpad
+	// (Vive, Oculus, Daydream, GearVR) or thumbstick (Microsoft).
+	//  If there is a trigger then that sits in slot #1 (Vive, Oculus,
+	//  Micrsoft) and becomes the primary button. But if there is no trigger
+	//  then the thumbpad becomes the primary button (Daydream, GearVR).
 
-	else primaryButtonName = 'button_0'
+	buttons.forEach( function( button ){
 
-
-	//  It is crucial that we have a reference to the actual gamepad!
-	//  In addition to requiring its .pose for position and orientation
-	//  updates, it also gives us all the goodies like .id, .index,
-	//  and maybe best of all... haptics!
-	//  We’ll also add style and DOF here but not onto the actual gamepad
-	//  object because that’s the browser’s territory.
-
-	this.gamepad      = gamepad;
-	this.gamepadStyle = style;
-	this.gamepadDOF   = ( +gamepad.pose.hasOrientation + +gamepad.pose.hasPosition ) * 3;
-	this.name         = gamepad.id;
-
-
-	//  Setup axes and button states so we can watch for change events.
-	//  If we have english names for these buttons that’s great.
-	//  If not... We’ll just roll with it because trying is important :)
-
-	gamepad.buttons.forEach( function( button, i ){
-
-		buttons[ i ] = {
-
-			name:      buttonNames[ i ] !== undefined ? buttonNames[ i ] : 'button_'+ i,
-			value:     button.value,
-			isTouched: button.touched,
-			isPressed: button.pressed
-		}
+		buttons.byName[ button.name ] = button
 	})
-	this.listenForButtonEvents = function(){
+	if( buttonNamePrimary === undefined ) buttonNamePrimary = gamepad.buttons.length > 1 ? 'button_1' : 'button_0'
+	buttons.byName[ buttonNamePrimary ].isPrimary = true
+
+
+	//  Let’s make some getters! 
+
+	this.getHandedness = function(){
+
+		return handedness
+	}
+	this.getAxis = function( index ){
+
+		return axes[ index ]
+	}
+	this.getAxes = function( nameOrIndex ){
+
+		var values = []
+
+		if( nameOrIndex === undefined ) return axes
+		else if( typeof nameOrIndex === 'string' ){
+
+			axes.byName[ nameOrIndex ].forEach( function( index ){
+
+				values.push( axes[ index ])
+			})
+			return values
+		}
+		else if( typeof nameOrIndex === 'number' ) return axes[ nameOrIndex ]
+	}
+	this.getButton = function( nameOrIndex ){
+
+		if( typeof nameOrIndex === 'string' ){
+
+			if( nameOrIndex === 'primary' ) nameOrIndex = buttonNamePrimary
+			return buttons.byName[ nameOrIndex ]
+		}
+		else if( typeof nameOrIndex === 'number' ) return buttons[ nameOrIndex ]
+	}
+
+
+	//  During your development phase you may need to do a reality check for
+	//  your own sanity. What controller is this?! What capabilities do we
+	//  think it has? This will help!
+
+	this.report = function(){ return (
+
+		'#'+ gamepad.index +': '+ gamepad.id +
+		'\n\tStyle: '+ this.style +
+		'\n\tDOF: '+ this.dof +
+		'\n\tHandedness: '+ handedness +
+		'\n\tAxes: '+ axes.reduce( function( a, e, i ){
+		
+			return a + e + ( i < axes.length - 1 ? ', ' : '' )
+		
+		}, '' ) +
+		'\n\tButtons:'+ buttons.reduce( function( a, e ){ return (
+		
+			a +
+			'\n\t\tName: '+ e.name +
+			'\n\t\t\tValue:     '+ e.value +
+			'\n\t\t\tisTouched: '+ e.isTouched +
+			'\n\t\t\tisPressed: '+ e.isPressed +
+			'\n\t\t\tisPrimary: '+ e.isPrimary
+		
+		)}, '' ) +
+		'\n\tPrimary button: '+ buttonNamePrimary
+	)}
+
+
+	//  Now we’re ready to listen and compare saved state to current state.
+
+	this.pollForChanges = function(){
 
 		var
-		verbosity  = THREE.VRController.verbosity,
-		controller = this,
-		prefix = '> #'+ controller.gamepad.index +' '+ controller.gamepad.id +' ('+ controller.gamepad.hand +') ';
+		verbosity      = THREE.VRController.verbosity,
+		controller     = this,
+		controllerInfo = '> #'+ controller.gamepad.index +' '+ controller.gamepad.id +' (Handedness: '+ handedness +') ',
+		axesNames      = Object.keys( axes.byName ),
+		axesChanged    = false
 
 
 		//  Did the handedness change?
 
-		if( hand !== controller.gamepad.hand ){
+		if( handedness !== controller.gamepad.hand ){
 
-			if( verbosity >= 0.5 ) console.log( prefix +'hand changed from "'+ hand +'" to "'+ controller.gamepad.hand +'"' );
-			hand = controller.gamepad.hand;
-			controller.dispatchEvent({ type: 'hand changed', hand: hand });
+			if( verbosity >= 0.4 ) console.log( controllerInfo +'hand changed from "'+ handedness +'" to "'+ controller.gamepad.hand +'"' )
+			handedness = controller.gamepad.hand
+			controller.dispatchEvent({ type: 'hand changed', hand: handedness })
 		}
 
 
-		//  Did any axes (assuming a 2D trackpad) values change?
+		//  Do we have named axes? 
+		//  If so let’s ONLY check and update those values.
 
-		if( axes[ 0 ] !== gamepad.axes[ 0 ] || axes[ 1 ] !== gamepad.axes[ 1 ]){
+		if( axesNames.length > 0 ){
 
-			axes[ 0 ] = gamepad.axes[ 0 ];
-			axes[ 1 ] = gamepad.axes[ 1 ];
-			if( verbosity >= 0.5 ) console.log( prefix +'axes changed', axes );
-			controller.dispatchEvent({ type: 'axes changed', axes: axes });
+			axesNames.forEach( function( axesName ){
+
+				var axesValues  = []
+
+				axesChanged = false
+				axes.byName[ axesName ].forEach( function( index ){
+
+					if( gamepad.axes[ index ] !== axes[ index ]){
+
+						axesChanged = true
+						axes[ index ] = gamepad.axes[ index ]
+					}
+					axesValues.push( axes[ index ])
+				})
+				if( axesChanged ){
+
+					if( verbosity >= 0.7 ) console.log( controllerInfo + axesName +' axes changed', axesValues )
+					controller.dispatchEvent({ type: axesName +' axes changed', axes: axesValues })
+				}
+			})
+		}
+
+
+		//  Otherwise we need to check and update ALL values.
+
+		else {
+
+			gamepad.axes.forEach( function( axis, i ){
+
+				if( axis !== axes[ i ]){
+
+					axesChanged = true
+					axes[ i ] = axis
+				}
+			})
+			if( axesChanged ){
+
+				if( verbosity >= 0.7 ) console.log( controllerInfo +'axes changed', axes )
+				controller.dispatchEvent({ type: 'axes changed', axes: axes })
+			}
 		}
 
 
@@ -156,57 +312,56 @@ THREE.VRController = function( gamepad ){
 		buttons.forEach( function( button, i ){
 
 			var
-			prefixFull = prefix + button.name +' ',
-			isPrimary  = button.name === primaryButtonName ? ' isPrimary!' : '',
-			suffix;
+			controllerAndButtonInfo = controllerInfo + button.name +' ',
+			isPrimary = button.isPrimary,
+			eventAction
+
+
+			//  If this button is analog-style then its values will range from
+			//  0.0 to 1.0. But if it’s binary you’ll only received either a 0
+			//  or a 1. In that case 'value' usually corresponds to the press
+			//  state: 0 = not pressed, 1 = is pressed.
 
 			if( button.value !== gamepad.buttons[ i ].value ){
 
-				button.value = gamepad.buttons[ i ].value;
-				if( verbosity >= 0.5 ) console.log( prefixFull +'value changed'+ isPrimary, button.value );
-				controller.dispatchEvent({ type: button.name  +' value changed', value: button.value });
-				if( isPrimary !== '' ) controller.dispatchEvent({ type: 'primary value changed', value: button.value });
+				button.value = gamepad.buttons[ i ].value
+				if( verbosity >= 0.6 ) console.log( controllerAndButtonInfo +'value changed', button.value )
+				controller.dispatchEvent({ type: button.name +' value changed', value: button.value })
+				if( isPrimary ) controller.dispatchEvent({ type: 'primary value changed', value: button.value })
 			}
+
+
+			//  Some buttons have the ability to distinguish between your hand
+			//  making contact with the button and the button actually being
+			//  pressed. (Useful!) Some buttons fake a touch state by using an
+			//  analog-style value property to make rules like: for 0.0 .. 0.1
+			//  touch = true, and for >0.1 press = true. 
+
 			if( button.isTouched !== gamepad.buttons[ i ].touched ){
 
-				button.isTouched = gamepad.buttons[ i ].touched;
-				suffix = ' ' + ( button.isTouched ? 'began' : 'ended' );
-				if( verbosity >= 0.5 ) console.log( prefixFull +'touch'+ suffix + isPrimary );
-				controller.dispatchEvent({ type: button.name  +' touch'+ suffix });
-				if( isPrimary !== '' ) controller.dispatchEvent({ type: 'primary touch'+ suffix });
+				button.isTouched = gamepad.buttons[ i ].touched
+				eventAction = button.isTouched ? 'began' : 'ended'
+				if( verbosity >= 0.5 ) console.log( controllerAndButtonInfo +'touch '+ eventAction )
+				controller.dispatchEvent({ type: button.name +' touch '+ eventAction })
+				if( isPrimary ) controller.dispatchEvent({ type: 'primary touch '+ eventAction })
 			}
+
+
+			//  This is the least complicated button property.
+
 			if( button.isPressed !== gamepad.buttons[ i ].pressed ){
 
-				button.isPressed = gamepad.buttons[ i ].pressed;
-				suffix = ' ' + ( button.isPressed ? 'began' : 'ended' );
-				if( verbosity >= 0.5 ) console.log( prefixFull +'press'+ suffix + isPrimary );
-				controller.dispatchEvent({ type: button.name  +' press'+ suffix });
-				if( isPrimary !== '' ) controller.dispatchEvent({ type: 'primary press'+ suffix });
+				button.isPressed = gamepad.buttons[ i ].pressed
+				eventAction = button.isPressed ? 'began' : 'ended'
+				if( verbosity >= 0.5 ) console.log( controllerAndButtonInfo +'press '+ eventAction )
+				controller.dispatchEvent({ type: button.name +' press '+ eventAction })
+				if( isPrimary ) controller.dispatchEvent({ type: 'primary press '+ eventAction })
 			}
 		})
 	}
-
-
-	//  Ok, we’ve got button events covered.
-	//  But what if you want to react to something WHILE or AS LONG AS a button is pressed?
-	//  Sure, you could set up your own trip boolean and use the above events....
-	//  Or you could just check the button’s current state yourself in your update loop!
-
-	this.getButton = function( buttonNameOrIndex ){
-
-		if( typeof buttonNameOrIndex === 'number' ) return buttons[ buttonNameOrIndex ]
-		else if( typeof buttonNameOrIndex === 'string' ){
-
-			if( buttonNameOrIndex === 'primary' ) buttonNameOrIndex = primaryButtonName
-			return buttons.find( function( button ){
-
-				return button.name === buttonNameOrIndex
-			})
-		}
-	}
 }
-THREE.VRController.prototype = Object.create( THREE.Object3D.prototype );
-THREE.VRController.prototype.constructor = THREE.VRController;
+THREE.VRController.prototype = Object.create( THREE.Object3D.prototype )
+THREE.VRController.prototype.constructor = THREE.VRController
 
 
 
@@ -218,7 +373,7 @@ THREE.VRController.prototype.update = function(){
 
 	var
 	gamepad = this.gamepad,
-	pose = gamepad.pose;
+	pose = gamepad.pose
 
 
 	//  ORIENTATION.
@@ -228,7 +383,7 @@ THREE.VRController.prototype.update = function(){
 	//  If somehow we never had orientation data it will use the default
 	//  THREE.Quaternion our controller’s Object3D was initialized with.
 
-	if( pose.orientation !== null ) this.quaternion.fromArray( pose.orientation );
+	if( pose.orientation !== null ) this.quaternion.fromArray( pose.orientation )
 
 
 	//  POSITION -- EXISTS!
@@ -238,8 +393,8 @@ THREE.VRController.prototype.update = function(){
 
 	if( pose.position !== null ){
 
-		this.position.fromArray( pose.position );
-		this.matrix.compose( this.position, this.quaternion, this.scale );
+		this.position.fromArray( pose.position )
+		this.matrix.compose( this.position, this.quaternion, this.scale )
 	}
 
 
@@ -255,23 +410,27 @@ THREE.VRController.prototype.update = function(){
 		//  If this is our first go-round with a 3DOF this then we’ll need to
 		//  create the arm model.
 
-		if( this.armModel === undefined ) this.armModel = new OrientationArmModel();
+		if( this.armModel === undefined ){
+
+			if( THREE.VRController.verbosity >= 0.5 ) console.log( '> #'+ gamepad.index +' '+ gamepad.id +' (Handedness: '+ this.getHandedness() +') adding OrientationArmModel' )
+			this.armModel = new OrientationArmModel()
+		}
 
 
 		//  Now and forever after we can just update this arm model
 		//  with the head (camera) position and orientation
 		//  and use its output to predict where the this is.
 
-		this.armModel.setHeadPosition( this.head.position );
-		this.armModel.setHeadOrientation( this.head.quaternion );
-		this.armModel.setControllerOrientation(( new THREE.Quaternion() ).fromArray( pose.orientation ));
-		this.armModel.update();
+		this.armModel.setHeadPosition( this.head.position )
+		this.armModel.setHeadOrientation( this.head.quaternion )
+		this.armModel.setControllerOrientation(( new THREE.Quaternion() ).fromArray( pose.orientation ))
+		this.armModel.update()
 		this.matrix.compose(
 
 			this.armModel.getPose().position,
 			this.armModel.getPose().orientation,
 			this.scale
-		);
+		)
 	}
 
 
@@ -285,19 +444,20 @@ THREE.VRController.prototype.update = function(){
 	//  Whereas this VRController instance is for the VR controllers that
 	//  you hold in your hands.
 
-	this.matrix.multiplyMatrices( this.standingMatrix, this.matrix );
-	this.matrixWorldNeedsUpdate = true;
+	this.matrix.multiplyMatrices( this.standingMatrix, this.matrix )
+	this.matrixWorldNeedsUpdate = true
 
 
-	//  BUTTON EVENTS.
+	//  Poll for changes in handedness, axes, and button states.
+	//  If there’s a change this function fires the appropriate event.
 
-	this.listenForButtonEvents();
+	this.pollForChanges()
 
 
 	//  If you’ve ever wanted to run the same function over and over --
 	//  once per update loop -- now’s your big chance.
 
-	if( typeof this.updateCallback === 'function' ) this.updateCallback();
+	if( typeof this.updateCallback === 'function' ) this.updateCallback()
 }
 
 
@@ -311,14 +471,15 @@ THREE.VRController.prototype.update = function(){
 
 
 //  This makes inspecting through the console a little bit saner.
+//  Expected values range from 0.0 to 1.0.
 
-THREE.VRController.verbosity = 0;//0.5;
+THREE.VRController.verbosity = 0.7//0.5 or 0.7 are good...
 
 
 //  We need to keep a record of found controllers
 //  and have some connection / disconnection handlers.
 
-THREE.VRController.controllers = {};
+THREE.VRController.controllers = []
 THREE.VRController.onGamepadConnect = function( gamepad ){
 
 
@@ -328,21 +489,21 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 
 	var
 	scope = THREE.VRController,
-	controller = new scope( gamepad );
+	controller = new scope( gamepad ),
+	hapticActuators = controller.gamepad.hapticActuators
 
 
 	//  We also need to store this reference somewhere so that we have a list
 	//  controllers that we know need updating, and by using the gamepad.index
 	//  as the key we also know which gamepads have already been found.
 
-	scope.controllers[ gamepad.index ] = controller;
+	scope.controllers[ gamepad.index ] = controller
 
 
 	//  Let’s give the controller a little rumble; some haptic feedback to
 	//  let the user know it’s connected and happy.
 
-	var hapticActuators = controller.gamepad.hapticActuators
-	if( hapticActuators && hapticActuators[ 0 ]) hapticActuators[ 0 ].pulse( 0.1, 300 );
+	if( hapticActuators && hapticActuators[ 0 ]) hapticActuators[ 0 ].pulse( 0.1, 300 )
 
 
 	//  Now we’ll broadcast a global connection event.
@@ -351,12 +512,13 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 	//  How would we listen for events on the controller instance
 	//  if we don’t already have a reference to it?!
 
-	if( scope.verbosity >= 0.5 ) console.log( 'vr controller connected', controller );
+	if( scope.verbosity >= 0.5 ) console.log( 'vr controller connected', controller )
+	if( scope.verbosity >= 0.7 ) console.log( controller.report() )
 	window.setTimeout( function(){
 
-		window.dispatchEvent( new CustomEvent( 'vr controller connected', { detail: controller }));
+		window.dispatchEvent( new CustomEvent( 'vr controller connected', { detail: controller }))
 
-	}, 500 );
+	}, 500 )
 }
 THREE.VRController.onGamepadDisconnect = function( gamepad ){
 
@@ -370,11 +532,11 @@ THREE.VRController.onGamepadDisconnect = function( gamepad ){
 
 	var
 	scope = THREE.VRController,
-	controller = scope.controllers[ gamepad.index ];
+	controller = scope.controllers[ gamepad.index ]
 
-	if( scope.verbosity >= 0.5 ) console.log( 'vr controller disconnected', controller );
-	controller.dispatchEvent({ type: 'disconnected', controller: controller });
-	scope.controllers[ gamepad.index ] = undefined;
+	if( scope.verbosity >= 0.5 ) console.log( 'vr controller disconnected', controller )
+	controller.dispatchEvent({ type: 'disconnected', controller: controller })
+	scope.controllers[ gamepad.index ] = undefined
 }
 
 
@@ -391,64 +553,84 @@ THREE.VRController.onGamepadDisconnect = function( gamepad ){
 
 THREE.VRController.update = function(){
 
-	var gamepads, gamepad, i;
+	var gamepads, gamepad, i
 
 
 	//  Before we do anything we ought to see if getGamepads even exists.
 	// (Perhaps in addition to actual VR rigs you’re also supporting
 	//  iOS devices via magic window?) If it doesn’t exist let’s bail:
 
-	if( navigator.getGamepads === undefined ) return;
+	if( navigator.getGamepads === undefined ) return
 
 
 	//  Yes, we need to scan the gamepads Array with each update loop
 	//  because it is the *safest* way to detect new gamepads / lost gamepads
 	//  and we avoid Doob’s proposed problem of a user accidentally including
-	//  VRControllers.js multiple times if we were using the 'ongamepadconnected'
+	//  VRControllers.js multiple times if we were using 'ongamepadconnected'
 	//  and 'ongamepaddisconnected' events firing multiple times.
 	//  Also... those connection events are not widely supported yet anyhow.
 
 	gamepads = navigator.getGamepads()
+
+
+	//  For some reason the early examples of using the Gamepad API iterate over
+	//  a fixed range: 0..3. But MS Edge seems to have 4 nulls (why?!) and then
+	//  add the Motion Controllers to index 4 and 5!
+
 	for( i = 0; i < gamepads.length; i ++ ){
 
 
-		//  The Gamepad API is a funny thing. I need to write more about how it works
-		//  in actual practice but for brevity here I’ll just say we won’t outright
-		//  accept what the API tells us exists. (It can create ghost controllers!)
-		//  Instead we will consider a Gamepad exists only when it is reported by the
-		//  API and it ALSO has a not-null position or not-null orientation.
+		//  The Gamepad API is a funny thing. I wrote about some of its 
+		//  quirks, specifically in Chromium, here:
+		//  https://medium.com/@stew_rtsmith/webvr-controllers-and-chromiums-gamepad-api-6c9adc633f38
+		//  For brevity here I’ll just say we won’t outright accept what the 
+		//  API tells us exists. (It can create ghost controllers!)
+		//  Instead we will consider a Gamepad exists only when it is reported
+		//  by the API and ALSO has not-null position or not-null orientation.
 
-		//  We could probably change this to “if( gamepad instanceof Gamepad )” but
-		//  dealing with these things across browsers and devices has made me extra
-		//  paranoid. Best to just verify the pose object is really there.
+		//  Could probably change this to “if( gamepad instanceof Gamepad )”
+		//  but dealing with these things across browsers and devices has made
+		//  me extra paranoid. Best to verify the pose object is really there.
 
-		gamepad = gamepads[ i ];
+		gamepad = gamepads[ i ]
 		if( gamepad      !== undefined &&//  Just for you, Microsoft Edge!
 			gamepad      !== null &&     //  Meanwhile Chrome and Firefox do it this way.
 			gamepad.pose !== undefined &&
 			gamepad.pose !== null ){
 
 
-			//  We've just confirmed that a “ready” Gamepad instance exists in this slot.
-			//  If it's not already in our controllers list we need to initiate it!
-			//  And either way we need to call update() on it.
+			//  We've just confirmed that a “ready” Gamepad instance exists in
+			//  this slot. If it’s not already in our controllers list we need
+			//  to initiate it! Either way we need to call update() on it.
 
 			if( gamepad.pose.orientation !== null || gamepad.pose.position !== null ){
 
-				if( this.controllers[ i ] === undefined ) THREE.VRController.onGamepadConnect( gamepad );
-				this.controllers[ i ].update();
+				if( this.controllers[ i ] === undefined ) THREE.VRController.onGamepadConnect( gamepad )
+				this.controllers[ i ].update()
 			}
 
 
-			//  If we've lost orientation and position then we've lost this controller.
-			//  Unfortunately we cannot rely on gamepad.connected because it will ALWAYS
-			//  equal true -- even if you power down the controller!
-			//  That doesn’t seem like the API’s intended behavior but it’s what I see in practice.
+			//  If we’ve lost orientation and position then we’ve lost this
+			//  controller. Unfortunately we cannot rely on gamepad.connected
+			//  because it will ALWAYS equal true -- even if you power down
+			//  the controller! (At least in Chromium.) That doesn’t seem like
+			//  the API’s intended behavior but it’s what I see in practice.
 
-			else if( this.controllers[ i ] !== undefined ) THREE.VRController.onGamepadDisconnect( gamepad );
+			else if( this.controllers[ i ] !== undefined ) THREE.VRController.onGamepadDisconnect( gamepad )
 		}
 	}
 }
+THREE.VRController.report = function(){
+
+	THREE.VRController.controllers.forEach( function( controller ){
+
+		console.log( '\n'+ controller.report() )
+	})
+}
+
+
+
+
 
 
 
@@ -460,111 +642,167 @@ THREE.VRController.update = function(){
 /////////////////
 
 
-//  Let’s take an ID string as reported directly from the gamepad API,
-//  translate that to a more generic “style name”
-//  and also see if we can’t map some names to the buttons!
-//  (This stuff was definitely fun to figure out.)
+//  Let’s take an ID string as reported directly from the Gamepad API,
+//  translate that to a more generic “style name” and also see if we can’t map
+//  some names to things for convenience. (This stuff was definitely fun to
+//  figure out.) These are roughly in order of complexity, simplest first:
 
 THREE.VRController.supported = {
+
+
+
+
+	    //////////////////
+	   //              //
+	  //   Daydream   //
+	 //              //
+	//////////////////
+
 
 	'Daydream Controller': {
 
 		style: 'daydream',
 
 
-		//  Daydream’s thumbpad is both a 2D trackpad and a button.
-		//  X axis: -1 = Left, +1 = Right
-		//  Y axis: -1 = Top,  +1 = Bottom  NOTE THIS IS FLIPPED FROM VIVE!
-
+		//  Daydream’s thumbpad is both a 2D trackpad and a button with both
+		//  touch and press. The Y-axis is Regular.
+		//
+		//              Top: Y = -1
+		//                   ↑
+		//    Left: X = -1 ←─┼─→ Right: X = +1
+		//                   ↓
+		//           Bottom: Y = +1
+		
+		axes: [{ name: 'thumbpad', indexes: [ 0, 1 ]}],
 		buttons: [ 'thumbpad' ],
 		primary: 'thumbpad'
 	},
+
+
+
+
+	    //////////////
+	   //          //
+	  //   Vive   //
+	 //          //
+	//////////////
+
+
 	'OpenVR Gamepad': {
 
 		style: 'vive',
+
+
+		//  Vive’s thumbpad is both a 2D trackpad and a button. Its Y-axis is 
+		//  Goofy -- in contrast to Daydream, Oculus, Microsoft, etc.
+		//
+		//              Top: Y = +1
+		//                   ↑
+		//    Left: X = -1 ←─┼─→ Right: X = +1
+		//                   ↓
+		//           Bottom: Y = -1
+
+		axes: [{ name: 'thumbpad', indexes: [ 0, 1 ]}],
 		buttons: [
 
 
-			//  Vive’s thumpad is both a 2D trackpad and a button. We can
-			//  1. touch it -- simply make contact with the trackpad (binary)
-			//  2. press it -- apply force to depress the button (binary)
-			//  3. get XY values for the point of contact on the trackpad.
-			//  X axis: -1 = Left,   +1 = Right
-			//  Y axis: -1 = Bottom, +1 = Top
+			//  Vive’s thumbpad registers touch and press distinctly.
 
 			'thumbpad',
 
 
-			//  Vive’s trigger offers a binary touch and a
-			//  gradient of “pressed-ness” values from 0.0 to 1.0.
-			//  Here’s my best guess at the trigger’s internal rules:
-			//  if( value > 0.00 ) touched = true else touched = false
-			//  if( value > 0.51 ) pressed = true   THRESHOLD FOR TURNING ON
-			//  if( value < 0.45 ) pressed = false  THRESHOLD FOR TURNING OFF
+			//  Vive’s trigger registers analog values between 0.0 and 1.0.
+			//  if( value > 0 ) isTouched = true else isTouched = false
+			//  UPON ENGAGING:  if( value > 0.51 ) isPressed = true
+			//  UPON RELEASING: if( value < 0.45 ) isPressed = false
 
 			'trigger',
 
 
-			//  Each Vive controller has two grip buttons, one on the left and one on the right.
-			//  They are not distinguishable -- pressing either one will register as a press
-			//  with no knowledge of which one was pressed.
-			//  This value is binary, it is either touched/pressed (1) or not (0)
-			//  so no need to track anything other than the pressed boolean.
+			//  Each Vive controller has two grip buttons, one on the left and
+			//  one on the right. They are not distinguishable -- pressing 
+			//  either one will register as a press with no knowledge of which
+			//  one was pressed. This value is binary, 0 = neither touched nor
+			//  pressed, 1 = both touched and pressed. So no need to track 
+			//  anything other than the isPressed boolean.
 
 			'grips',
 
 
-			//  The menu button is the tiny button above the thumbpad (NOT the one below it).
-			//  It’s simple; just a binary on / off press.
+			//  The menu button is the tiny button above the thumbpad -- NOT
+			//  the one below it. Simple binary on / off press.
 
 			'menu'
 		],
 		primary: 'trigger'
 	},
+
+
+
+
+	    ////////////////
+	   //            //
+	  //   Oculus   //
+	 //            //
+	////////////////
+
+
 	'Oculus Touch (Right)': {
 
 
-		//  NOTE: Previously I’d named the style “Rift” and referred to this as a “Rift”
-		//  in the comments because it’s so much easier to write and to say than “Oculus”.
-		//  Lazy, right? But deep down in your dark heart I know you agree with me.
-		//  But I changed it all to “oculus” now because that’s what both the headset and
-		//  the controllers report themselves as. There’s no mention of “Rift” in those
-		//  ID strings at all. I felt in the end consistency was better than ease.
+		//  Previously I’d named the style “Rift” and referred to this as a 
+		// “Rift” in the comments because it’s so much easier to write and to 
+		//  say than “Oculus”. Lazy, right? But deep down in your dark heart 
+		//  I know you agree with me. But I changed it all to “oculus” now 
+		//  because that’s what both the headset and the controllers report 
+		//  themselves as. There’s no mention of “Rift” in those ID strings at
+		//  all. I felt in the end consistency was better than ease.
 
 		style: 'oculus',
+
+
+		//  Oculus’s thumbstick has axes values and is also a button.
+		//  The Y-axis is Regular.
+		//
+		//              Top: Y = -1
+		//                   ↑
+		//    Left: X = -1 ←─┼─→ Right: X = +1
+		//                   ↓
+		//           Bottom: Y = +1
+
+		axes: [{ name: 'thumbstick', indexes: [ 0, 1 ]}],
 		buttons: [
 
 
-			//  Oculus’s thumbstick has axes values and is also a button,
-			//  with touch and press states similar to Vive’s thumbpad.
-			//  X axis: -1 = Left, +1 = Right
-			//  Y axis: -1 = Top,  +1 = Bottom  NOTE THIS IS FLIPPED FROM VIVE!
+			//  Oculus’s thumbstick has a true touch state and a press state.
 
 			'thumbstick',
 
 
-			//  Oculus’s trigger is twitchier than Vive’s.
-			//  Compare these threshold guesses to Vive’s trigger:
-			//  if( value > 0.1 ) pressed = true   THRESHOLD FOR TURNING ON
-			//  if( value < 0.1 ) pressed = false  THRESHOLD FOR TURNING OFF
+			//  Oculus’s trigger is far more fire-happy than Vive’s.
+			//  Compare these thresholds to Vive’s trigger:
+			//  UPON ENGAGING:  if( value >= 0.1 ) isPressed = true
+			//  UPON RELEASING: if( value <  0.1 ) isPressed = false
 
 			'trigger',
 
 
-			//  Oculus’s grip button follows the exact same pattern as the trigger.
+			//  Oculus’s grip button follows the exact same press thresholds
+			//  as the trigger.
 
 			'grip',
 
 
-			//  Oculus has two old-school video game buttons, A and B.
-			// (For the left-hand controller these are X and Y.)
-			//  They report separate binary on/off values for both touch and press.
+			//  Oculus has two old-school video game buttons, A and B. (On the
+			//  left-hand controller these are X and Y.) They report separate 
+			//  binary on/off values for both touch and press.
 
 			'A', 'B',
 
 
-			//  Oculus has an inert base “button” that’s really just a resting place
-			//  for your thumbs and only reports a binary on/off for touch.
+			//  Oculus has an inert base “button” that’s really just a resting
+			//  place for your thumbs. It only reports a binary on/off for 
+			//  touch and has no press.
 
 			'thumbrest'
 		],
@@ -573,6 +811,7 @@ THREE.VRController.supported = {
 	'Oculus Touch (Left)': {
 
 		style: 'oculus',
+		axes: [{ name: 'thumbstick', indexes: [ 0, 1 ]}],
 		buttons: [
 
 			'thumbstick',
@@ -582,8 +821,109 @@ THREE.VRController.supported = {
 			'thumbrest'
 		],
 		primary: 'trigger'
+	},
+
+
+
+
+	    ///////////////////
+	   //               //
+	  //   Microsoft   //
+	 //               //
+	///////////////////
+
+
+	'Spatial Controller (Spatial Interaction Source) 045E-065B': {
+
+
+		//  It’s hard to know what to call these controllers. They report as
+		// “Spatial Controllers” but are branded as “Motion Controllers”
+		//  and they’re for “Windows Mixed Reality” devices... 
+		// “Microsoft Windows Mixed Reality Spatial Motion Controller”?
+		//  Perhaps best to just label them as “Microsoft” for now and revisit
+		//  in the future if need be.
+
+		style: 'microsoft',
+
+
+		//  Microsoft’s controllers have two 2D axes. Both Y-axes are Regular.
+		//
+		//              Top: Y = -1
+		//                   ↑
+		//    Left: X = -1 ←─┼─→ Right: X = +1
+		//                   ↓
+		//           Bottom: Y = +1
+
+		axes: [
+
+
+			//  The thumbstick is super twitchy, fires when you breathe on it.
+			//  And sometimes when you don’t. 
+
+			{ name: 'thumbstick', indexes: [ 0, 1 ]},
+			{ name: 'thumbpad',   indexes: [ 2, 3 ]}
+		],
+		buttons: [
+
+
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: Duplicates isPressed.
+			//  isPressed: As expected.
+
+			'thumbstick',
+
+
+			//  Trigger’s physical range of motion noticably exceeds the range
+			//  of values reported. For example when engaging you can continue
+			//  to squueze beyond when the value reports 1.0. And when 
+			//  releasing you will reach value === 0 before the trigger is 
+			//  completely released. The value property dictates touch and
+			//  press states as follows:
+
+			//  UPON ENGAGING
+			//  if( value >= 0 && value < 0.1 ) NO values reported at all!
+			//  if( value >= 0.10 ) isTouched = true
+			//  if( value >= 0.12 ) isPressed = true
+
+			//  UPON RELEASING
+			//  if( value <   0.12 ) isPressed = false
+			//  if( value === 0    ) isTouched = false
+
+			//  value:     Analog 0 to 1.
+			//  isTouched: Simulated, corresponds to value.
+			//  isPressed: Corresponds to value.
+
+			'trigger',
+
+
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: Duplicates isPressed.
+			//  isPressed: As expected.
+
+			'grip',
+
+
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: Duplicates isPressed.
+			//  isPressed: As expected.
+
+			'menu',
+
+
+			//  This is the only button that has actual touch detection.
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: ACTUAL BOOLEAN FOR TOUCH!
+			//  isPressed: As expected.
+
+			'thumbpad'
+		],
+		primary: 'trigger'
 	}
 }
+
+
+
+
 
 
 
