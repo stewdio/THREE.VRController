@@ -5,8 +5,8 @@ THREE.VRController
 
 ![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.jpg "THREE.VRController")
 
-__Support hand controllers for Oculus, Vive, Daydream, GearVR, Microsoft Mixed
-Reality, and more by adding VRController to your existing 
+__Support hand controllers for Oculus, Vive, Windows Mixed Reality, Daydream, 
+GearVR, and more by adding VRController to your existing 
 [Three.js](https://threejs.org/)-based 
 [WebVR](https://webvr.rocks/) project.__
 VRController wraps the [Web Gamepad API](https://www.w3.org/TR/gamepad/), 
