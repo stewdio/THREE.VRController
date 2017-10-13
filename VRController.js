@@ -707,14 +707,29 @@ THREE.VRController.supported = {
 
 
 			//  Vive’s thumbpad registers touch and press distinctly.
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: ACTUAL BOOLEAN FOR TOUCH!
+			//  isPressed: As expected.
 
 			'thumbpad',
 
 
-			//  Vive’s trigger registers analog values between 0.0 and 1.0.
-			//  if( value > 0 ) isTouched = true else isTouched = false
-			//  UPON ENGAGING:  if( value > 0.51 ) isPressed = true
-			//  UPON RELEASING: if( value < 0.45 ) isPressed = false
+			//  ===  Chromium  ===============================================
+			//  if( value >  0.00 ) isTouched = true else isTouched = false
+			//  UPON ENGAGING
+			//  if( value >= 0.55 ) isPressed = true
+			//  UPON RELEASING
+			//  if( value <  0.45 ) isPressed = false
+
+			//  ===  Firefox  ================================================
+			//  UPON ENGAGING
+			//  if( value >= 0.10 ) isTouched = isPressed = true
+			//  UPON RELEASING
+			//  if( value <  0.10 ) isTouched = isPressed = false
+
+			//  value:     Analog 0 to 1.
+			//  isTouched: Duplicates isPressed in FF, independent in Chrome.
+			//  isPressed: Corresponds to value.
 
 			'trigger',
 
@@ -726,11 +741,19 @@ THREE.VRController.supported = {
 			//  pressed, 1 = both touched and pressed. So no need to track 
 			//  anything other than the isPressed boolean.
 
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: Duplicates isPressed.
+			//  isPressed: As expected.
+
 			'grips',
 
 
 			//  The menu button is the tiny button above the thumbpad -- NOT
 			//  the one below it. Simple binary on / off press.
+
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: Duplicates isPressed.
+			//  isPressed: As expected.
 
 			'menu'
 		],
@@ -774,28 +797,46 @@ THREE.VRController.supported = {
 		buttons: [
 
 
-			//  Oculus’s thumbstick has a true touch state and a press state.
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: ACTUAL BOOLEAN FOR TOUCH!
+			//  isPressed: As expected.
 
 			'thumbstick',
 
 
-			//  Oculus’s trigger is far more fire-happy than Vive’s.
+			//  ===  Chromium  ===============================================
+			//  Oculus’s trigger in Chromium is far more fire-happy than Vive’s.
 			//  Compare these thresholds to Vive’s trigger:
-			//  UPON ENGAGING:  if( value >= 0.1 ) isPressed = true
-			//  UPON RELEASING: if( value <  0.1 ) isPressed = false
+			//  if( value >  0.00 ) isTouched = true else isTouched = false
+			//  UPON ENGAGING
+			//  if( value >= 0.10 ) isPressed = true
+			//  UPON RELEASING
+			//  if( value <  0.10 ) isPressed = false
+
+			//  ===  Firefox  ================================================
+			//  UPON ENGAGING
+			//  if( value >= 0.10 ) isTouched = isPressed = true
+			//  UPON RELEASING
+			//  if( value <  0.10 ) isTouched = isPressed = false
+
+			//  value:     Analog 0 to 1.
+			//  isTouched: Duplicates isPressed in FF, independent in Chrome.
+			//  isPressed: Corresponds to value.
 
 			'trigger',
 
 
 			//  Oculus’s grip button follows the exact same press thresholds
-			//  as the trigger.
+			//  as its trigger.
 
 			'grip',
 
 
 			//  Oculus has two old-school video game buttons, A and B. (On the
-			//  left-hand controller these are X and Y.) They report separate 
-			//  binary on/off values for both touch and press.
+			//  left-hand controller these are X and Y.)
+			//  value:     Binary 0 or 1, duplicates isPressed.
+			//  isTouched: ACTUAL BOOLEAN FOR TOUCH!
+			//  isPressed: As expected.
 
 			'A', 'B',
 
@@ -803,6 +844,9 @@ THREE.VRController.supported = {
 			//  Oculus has an inert base “button” that’s really just a resting
 			//  place for your thumbs. It only reports a binary on/off for 
 			//  touch and has no press.
+			//  value:     Always 0.
+			//  isTouched: ACTUAL BOOLEAN FOR TOUCH!
+			//  isPressed: N/A.
 
 			'thumbrest'
 		],
@@ -842,6 +886,7 @@ THREE.VRController.supported = {
 		// “Microsoft Windows Mixed Reality Spatial Motion Controller”?
 		//  Perhaps best to just label them as “Microsoft” for now and revisit
 		//  in the future if need be.
+		//  NOTE: Currently Windows MR devices only function in MS Edge!
 
 		style: 'microsoft',
 
@@ -881,13 +926,13 @@ THREE.VRController.supported = {
 			//  press states as follows:
 
 			//  UPON ENGAGING
-			//  if( value >= 0 && value < 0.1 ) NO values reported at all!
+			//  if( value >= 0.00 && value < 0.10 ) NO values reported at all!
 			//  if( value >= 0.10 ) isTouched = true
 			//  if( value >= 0.12 ) isPressed = true
 
 			//  UPON RELEASING
-			//  if( value <   0.12 ) isPressed = false
-			//  if( value === 0    ) isTouched = false
+			//  if( value <  0.12 ) isPressed = false
+			//  if( value == 0.00 ) isTouched = false
 
 			//  value:     Analog 0 to 1.
 			//  isTouched: Simulated, corresponds to value.
