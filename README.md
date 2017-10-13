@@ -5,34 +5,46 @@ THREE.VRController
 
 ![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.png "THREE.VRController")
 
-__Generic VR controller handler for building [WebVR](https://webvr.rocks/)
-experiences with [Three.js](https://threejs.org/).__
-Wraps the [Web Gamepad API](https://www.w3.org/TR/gamepad/) to handle gamepad
-discovery, emits a controller (`THREE.Object3D`) instance upon discovery,
-handles controller updates for position and orientation (including
+__Support hand controllers for Oculus, Vive, Daydream, GearVR, Microsoft Mixed
+Reality, and more by adding VRController to your existing 
+[Three.js](https://threejs.org/)-based 
+[WebVR](https://webvr.rocks/) project.__
+VRController wraps the [Web Gamepad API](https://www.w3.org/TR/gamepad/), 
+handles [gamepad browser quirks](https://medium.com/@stew_rtsmith/webvr-controllers-and-chromiums-gamepad-api-6c9adc633f38),
+emits a controller instance (an extended `THREE.Object3D`) upon gamepad 
+discovery, handles controller updates for position and orientation—including
 3[DOF](https://en.wikipedia.org/wiki/Degrees_of_freedom_(mechanics)) rigs
-via the `OrientationArmModel`). Watches for updates on axes and button states
-and emits corresponding events on the controller instance. Adds explicit support
-for [HTC Vive](https://www.vive.com),
+via the `OrientationArmModel`—and watches for updates on axes and button 
+states—emitting corresponding events on the controller instance.
+(Pretty great, right?!)
+
+VRController includes explicit support for
 [Oculus Rift + Touch](https://www.oculus.com/rift/),
+[HTC Vive](https://www.vive.com),
+[Windows Mixed Reality motion controllers](https://www.microsoft.com/en-us/windows/windows-mixed-reality),
 [Google Daydream](https://vr.google.com/daydream/),
-with implicit support for
+and has implicit support for
 [Samsung GearVR](http://www.samsung.com/GearVR)
-and similar devices. Submitted to
+and similar devices. Is your company developing new hand controllers? Send
+them my way and I’ll add support for it. 😉
+
+VRController is compatible with Three.js __r87__ which is the first version to
+use the new `renderer.vr` object and was originally submitted to
 [Three.js](https://github.com/mrdoob/three.js/) as
 [pull request #10991](https://github.com/mrdoob/three.js/pull/10991)
-on Saturday, 11 March 2017. Compatible with Three.js __r86__.
+on Saturday, 11 March 2017. Note: that pull request is no longer maintained.
 
 
 Requirements
 ------------------------------------------------------------------------------
 1. Virtual Reality rig with 3DOF or 6DOF controllers such as the
-[HTC Vive](https://www.vive.com/),
 [Oculus Rift + Touch](https://www.oculus.com/rift/),
+[HTC Vive](https://www.vive.com/),
+a [Windows Mixed Reality](https://www.microsoft.com/en-us/windows/windows-mixed-reality) rig,
 [Google Daydream](https://vr.google.com/daydream/),
 [Samsung GearVR](http://www.samsung.com/GearVR), or similar devices.
 2. WebVR-capable browser. For the latest list of browsers
-that support WebVR — as well as download and setup instructions — see
+that support WebVR—as well as download and setup instructions—see
 [WebVR Rocks](https://webvr.rocks/).
 3. Working knowledge of [Three.js](https://threejs.org/).
 
@@ -52,13 +64,13 @@ Do it yourself
 example file as your guide for the following steps.
 2. Add a `THREE.VRController.update()` function call to your animation loop.
 3. Add a listener for the `"vr controller connected"` global event. This is
-how you will receive the controller object instance—which is a
+how you will receive the controller object instance—which is an extended
 `THREE.Object3D`. This means you can add it to your scene, attach meshes
 to it, and so on.
 4. When you receive the controller object instance you must give it some
 additional information depending on the type of controller. For 6DOF (room
 scale) rigs you must provide a standing matrix, easily obtained from your
-`WebGLRenderer` instance. This will look similar to:
+`WebGLRenderer` instance in Three.js __r87__ and above. This will look similar to:
 `controller.standingMatrix = renderer.vr.getStandingMatrix()`.
 For 3DOF (seated) rigs you must provide a reference to the camera so the
 controller can use the headset’s live position and orientation to guess where

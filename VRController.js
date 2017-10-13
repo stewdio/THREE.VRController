@@ -471,9 +471,9 @@ THREE.VRController.prototype.update = function(){
 
 
 //  This makes inspecting through the console a little bit saner.
-//  Expected values range from 0.0 to 1.0.
+//  Expected values range from 0 (silent) to 1 (everything).
 
-THREE.VRController.verbosity = 0.7//0.5 or 0.7 are good...
+THREE.VRController.verbosity = 0//0.5 or 0.7 are good...
 
 
 //  We need to keep a record of found controllers
