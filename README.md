@@ -3,7 +3,7 @@
 THREE.VRController
 ==============================================================================
 
-![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.png "THREE.VRController")
+![THREE.VRController](https://github.com/stewdio/THREE.VRController/raw/master/VRController.jpg "THREE.VRController")
 
 __Support hand controllers for Oculus, Vive, Daydream, GearVR, Microsoft Mixed
 Reality, and more by adding VRController to your existing 
