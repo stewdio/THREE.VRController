@@ -1,5 +1,6 @@
 /**
  * @author Stewart Smith / http://stewartsmith.io
+ * @author Moar Technologies Corp / https://moar.io
  * @author Jeff Nusz / http://custom-logic.com
  * @author Data Arts Team / https://github.com/dataarts
  */

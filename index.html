@@ -5,7 +5,30 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<style>
-			body { margin: 0; overflow: hidden; }
+			
+			body {
+
+				margin: 0;
+				overflow: hidden;
+				font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				font-size:   13px;
+				line-height: 20px;
+			}
+			header {
+
+				position: absolute;
+				top:  10px; 
+				left: 10px;
+				background-color: rgba( 255, 255, 255, 0.9 );
+				padding: 20px;
+			}
+			button {
+
+				border-radius: 4px;
+				background-color: #F40 !important;
+				padding: 12px !important;
+			}
+
 		</style>
 		<script src="https://cdn.rawgit.com/mrdoob/three.js/r87/build/three.js"></script>
 		<script src="https://cdn.rawgit.com/mrdoob/three.js/r87/examples/js/vr/WebVR.js"></script>
@@ -166,7 +189,7 @@ camera.add( head )
 
 var torus = new THREE.Mesh(
 
-	new THREE.TorusKnotGeometry( 0.4, 0.15, 150, 20 ),
+	new THREE.TorusKnotGeometry( 0.4, 0.15, 256, 32 ),
 	new THREE.MeshStandardMaterial({ roughness: 0.01, metalness: 0.2 })
 )
 torus.position.set( -0.25, 1.4, -1.5 )
@@ -311,5 +334,11 @@ renderer.animate( update )
 
 
 		</script>
+		<header>
+			<strong>VRController</strong> for Three.js<br>
+			<a href="https://github.com/stewdio/THREE.VRController" target="_blank">View this source code on GitHub</a>.<br>
+			See also <a href="http://stewartsmith.io" target="_blank">Stewart Smith</a><br>
+			and <a href="https://moar.io" target="_blank">Moar Technologies Corp</a>.
+		</header>
 	</body>
 </html>
