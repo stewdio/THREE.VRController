@@ -82,7 +82,8 @@ we do in the
 `THREE.VRController.verbosity = 1`.
 You’ll now see a flood of verbose comments in the JavaScript console as you
 interact with your controller. To access controllers directly from the console
-explore the `THREE.VRController.controllers` object.
+explore the `THREE.VRController.controllers` object. To get a snapshot of all
+controller data try `THREE.VRController.report()`.
 
 
 Run locally

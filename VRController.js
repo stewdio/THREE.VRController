@@ -133,8 +133,15 @@ THREE.VRController = function( gamepad ){
 	//  Do we recognize this type of controller based on its gamepad.id?
 	//  If not we’ll still roll with it, we just won’t have axes and buttons
 	//  mapped to convenience strings. No biggie.
-
-	supported = THREE.VRController.supported[ gamepad.id ]
+	//  Because Microsoft’s controller appends unique ID numbers to the end of
+	//  its ID string we can no longer just do this:
+	//  supported = THREE.VRController.supported[ gamepad.id ]
+	//  Instead we must loop through some object keys.
+	
+	supported = Object.elements( THREE.VRController.supported ).find( function( id ){
+	
+		if( gamepad.id.startsWith( id )) return true
+	})
 	if( supported !== undefined ){
 
 		this.style = supported.style
@@ -279,6 +286,13 @@ THREE.VRController = function( gamepad ){
 					axesValues.push( axes[ index ])
 				})
 				if( axesChanged ){
+
+
+					//  Vive’s thumbpad is the only controller axes that uses 
+					//  a “Goofy” Y-axis. We’re going to INVERT it so you
+					//  don’t have to worry about it!
+
+					if( controller.style === 'vive' && axesName === 'thumbpad' ) axesValues[ 1 ] *= -1
 
 					if( verbosity >= 0.7 ) console.log( controllerInfo + axesName +' axes changed', axesValues )
 					controller.dispatchEvent({ type: axesName +' axes changed', axes: axesValues })
@@ -695,14 +709,18 @@ THREE.VRController.supported = {
 
 
 		//  THUMBPAD
-		//  Both a 2D trackpad and a button. Its Y-axis is “Goofy” --
-		//  in contrast to Daydream, Oculus, Microsoft, etc.
+		//  Both a 2D trackpad and a button. Its Y-axis is “Goofy” -- in
+		//  contrast to Daydream, Oculus, Microsoft, etc.
 		//
 		//              Top: Y = +1
 		//                   ↑
 		//    Left: X = -1 ←─┼─→ Right: X = +1
 		//                   ↓
 		//           Bottom: Y = -1
+		//
+		//  Vive is the only goofy-footed y-axis in our support lineup so to
+		//  make life easier on you WE WILL INVERT ITS AXIS in the code above.
+		//  This way YOU don’t have to worry about it. 
 
 		axes: [{ name: 'thumbpad', indexes: [ 0, 1 ]}],
 		buttons: [
@@ -885,15 +903,24 @@ THREE.VRController.supported = {
 	///////////////////
 
 
-	'Spatial Controller (Spatial Interaction Source) 045E-065B': {
+	//  This is the first Gamepad ID setup we’ve come across that forced us
+	//  to loop through the supported object’s keys and compare values using
+	//  startsWith(), instead of just accessing directly like so:
+	//  supported = THREE.VRController.supported[ gamepad.id ].
+	//  You can read all the details about the unqiue identifier suffix here:
+	//  https://github.com/stewdio/THREE.VRController/issues/8
+
+	'Spatial Controller (Spatial Interaction Source)': {
 
 
 		//  It’s hard to know what to call these controllers. They report as
 		// “Spatial Controllers” but are branded as “Motion Controllers”
 		//  and they’re for “Windows Mixed Reality” devices... 
 		// “Microsoft Windows Mixed Reality Spatial Motion Controller”?
-		//  Perhaps best to just label them as “Microsoft” for now and revisit
-		//  in the future if need be.
+		//  Their team prefers “Windows motion controllers”. But for our style
+		//  property string we want pith -- a single short word that makes it
+		//  easy to distinguish from Oculus, Vive, etc. So we’ll go with 
+		// “microsoft” as in “this is a controller in the style of Microsoft”.
 		//
 		//  NOTE: Currently Windows Mixed Reality devices only function in 
 		//  Microsoft Edge on latest builds of Windows 10.
