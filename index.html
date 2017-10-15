@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>THREE.VRController demo</title>
+		<title>VRController for Three.js (WebVR)</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<style>
@@ -45,20 +45,23 @@ var camera, scene, renderer, controls
 //  We need a renderer.
 
 renderer = new THREE.WebGLRenderer({ antialias: true })
-renderer.setClearColor( 0x101010 )
+renderer.setClearColor( 0xCCCCCC )
 renderer.setPixelRatio( window.devicePixelRatio )
 renderer.setSize( window.innerWidth, window.innerHeight )
-renderer.vr.enabled = true//  Well that’s pretty important! (New in r86.)
+renderer.vr.enabled  = true
 renderer.vr.standing = true
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
 document.body.appendChild( renderer.domElement )
 
 
-//  Camera, VRControls to move the camera as your headset moves,
-// (NOTE that VRControls and VRController are NOT related!!),
-//  and a Scene to render it to.
+//  Once we create the camera we’ll attach it to the scene. This is usually
+//  not necessary, but we’re going to attach a “head” to the camera that casts
+//  a shadow so you can see evidence of your own presence.
 
 camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10 )
 scene  = new THREE.Scene()
+scene.add( camera )
 
 
 //  This button is important. It toggles between normal in-browser view
@@ -82,18 +85,41 @@ function onWindowResize(){
 window.addEventListener( 'resize', onWindowResize, false )
 
 
+//  This shortcut will be useful for later on down the road...
+
+applyDown = function( obj, key, value ){
+
+	obj[ key ] = value
+	if( obj.children !== undefined && obj.children.length > 0 ){
+
+		obj.children.forEach( function( child ){
+
+			applyDown( child, key, value )
+		})
+	}
+}
+castShadows = function( obj ){
+
+	applyDown( obj, 'castShadow', true )
+}
+
+
 
 
 //  Ok, we’ve got the basic Three.js overhead out of the way.
 //  Now let’s add some stuff to our empty scene.
 
-var torus = new THREE.Mesh(
+var light = new THREE.DirectionalLight( 0xFFFFFF, 1, 100 )
+light.position.set(  1, 10, -0.5 )
+light.castShadow = true
+light.shadow.mapSize.width  = 2048
+light.shadow.mapSize.height = 2048
+light.shadow.camera.near    =    1
+light.shadow.camera.far     =   12
+scene.add( light )
 
-	new THREE.TorusKnotGeometry( 0.4, 0.15, 150, 20 ),
-	new THREE.MeshStandardMaterial({ roughness: 0.01, metalness: 0.2 })
-)
-torus.position.set( -0.25, 1.4, -1.5 )
-scene.add( torus )
+scene.add( new THREE.HemisphereLight( 0x909090, 0x404040 ))
+
 
 var floor = new THREE.Mesh(
 
@@ -102,20 +128,50 @@ var floor = new THREE.Mesh(
 
 		roughness: 1.0,
 		metalness: 0.0,
-		color: 0x909090,
+		color: 0xFFFFFF,
+		transparent: true,
+		opacity: 0.8
+	})
+)
+floor.position.y = -0.1//  Because thickness is 0.2 and position is from center.
+floor.receiveShadow = true
+scene.add( floor )
+
+
+var wireframe = new THREE.Mesh(
+
+	floor.geometry.clone(),
+	new THREE.MeshStandardMaterial({
+
+		color: 0x999999,
 		wireframe: true
 	})
 )
-floor.position.y = -0.1
-scene.add( floor )
-
-var light = new THREE.DirectionalLight()
-light.position.set(  1, 1.5, -0.5 )
-scene.add( light )
-
-scene.add( new THREE.HemisphereLight( 0x909090, 0x404040 ))
+wireframe.position.y = -0.105// Half a CM lower than floor surface.
+scene.add( wireframe )
 
 
+//  Your head is going to cast a shadow.
+//  You won’t see this sphere because it’s single-sided be default
+//  and the camera is sitting on the inside ;)
+
+var head = new THREE.Mesh(
+
+	new THREE.OctahedronGeometry( 0.08913, 2 ),
+	new THREE.MeshStandardMaterial()
+)
+head.castShadow = true
+camera.add( head )
+
+
+var torus = new THREE.Mesh(
+
+	new THREE.TorusKnotGeometry( 0.4, 0.15, 150, 20 ),
+	new THREE.MeshStandardMaterial({ roughness: 0.01, metalness: 0.2 })
+)
+torus.position.set( -0.25, 1.4, -1.5 )
+torus.castShadow = true
+scene.add( torus )
 
 
 //  DAT GUI for WebVR is just one of the coolest things ever.
@@ -131,6 +187,7 @@ scene.add( gui )
 gui.add( torus.position, 'x', -1, 1 ).step( 0.001 ).name( 'Position X' )
 gui.add( torus.position, 'y', -1, 2 ).step( 0.001 ).name( 'Position Y' )
 gui.add( torus.rotation, 'y', -Math.PI, Math.PI ).step( 0.001 ).name( 'Rotation' ).listen()
+castShadows( gui )
 
 
 
@@ -171,8 +228,8 @@ window.addEventListener( 'vr controller connected', function( event ){
 	//  Let’s fix that!
 
 	var
-	meshColorOff = 0xFF4040,
-	meshColorOn  = 0xFFFF00,
+	meshColorOff = 0xDB3236,//  Red.
+	meshColorOn  = 0x3CBA54,//  Green.
 	controllerMaterial = new THREE.MeshStandardMaterial({
 
 		color: meshColorOff
@@ -194,6 +251,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 	controllerMesh.add( handleMesh )
 	controller.userData.mesh = controllerMesh//  So we can change the color later.
 	controller.add( controllerMesh )
+	castShadows( controller )
 
 
 	//  Allow this controller to interact with DAT GUI.
