@@ -58,7 +58,7 @@
 THREE.VRController = function( gamepad ){
 
 	var
-	supported,
+	key, supported,
 	handedness  = '',
 	axes        = [],
 	axesMaps    = [],
@@ -137,12 +137,13 @@ THREE.VRController = function( gamepad ){
 	//  Because Microsoft’s controller appends unique ID numbers to the end of
 	//  its ID string we can no longer just do this:
 	//  supported = THREE.VRController.supported[ gamepad.id ]
-	//  Instead we must loop through some object keys.
+	//  Instead we must loop through some object keys first.
 	
-	supported = Object.elements( THREE.VRController.supported ).find( function( id ){
+	key = Object.keys( THREE.VRController.supported ).find( function( id ){
 	
 		if( gamepad.id.startsWith( id )) return true
 	})
+	supported = THREE.VRController.supported[ key ]
 	if( supported !== undefined ){
 
 		this.style = supported.style

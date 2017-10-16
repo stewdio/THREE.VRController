@@ -125,6 +125,10 @@ castShadows = function( obj ){
 
 	applyDown( obj, 'castShadow', true )
 }
+receiveShadows = function( obj ){
+
+	applyDown( obj, 'receiveShadow', true )
+}
 
 
 
@@ -146,7 +150,7 @@ scene.add( new THREE.HemisphereLight( 0x909090, 0x404040 ))
 
 var floor = new THREE.Mesh(
 
-	new THREE.BoxGeometry( 6, 0.2, 6, 6, 1, 6 ),
+	new THREE.PlaneBufferGeometry( 6, 6, 12, 12 ),
 	new THREE.MeshStandardMaterial({
 
 		roughness: 1.0,
@@ -156,7 +160,7 @@ var floor = new THREE.Mesh(
 		opacity: 0.8
 	})
 )
-floor.position.y = -0.1//  Because thickness is 0.2 and position is from center.
+floor.rotation.x = Math.PI / -2
 floor.receiveShadow = true
 scene.add( floor )
 
@@ -164,13 +168,14 @@ scene.add( floor )
 var wireframe = new THREE.Mesh(
 
 	floor.geometry.clone(),
-	new THREE.MeshStandardMaterial({
+	new THREE.MeshBasicMaterial({
 
-		color: 0x999999,
+		color: 0xFFFFFF,
 		wireframe: true
 	})
 )
-wireframe.position.y = -0.105// Half a CM lower than floor surface.
+wireframe.rotation.x = Math.PI / -2
+wireframe.position.y = -0.001
 scene.add( wireframe )
 
 
@@ -178,13 +183,13 @@ scene.add( wireframe )
 //  You won’t see this sphere because it’s single-sided be default
 //  and the camera is sitting on the inside ;)
 
-var head = new THREE.Mesh(
+/* var head = new THREE.Mesh(
 
 	new THREE.OctahedronGeometry( 0.08913, 2 ),
 	new THREE.MeshStandardMaterial()
 )
 head.castShadow = true
-camera.add( head )
+camera.add( head ) */
 
 
 var torus = new THREE.Mesh(
@@ -193,7 +198,8 @@ var torus = new THREE.Mesh(
 	new THREE.MeshStandardMaterial({ roughness: 0.01, metalness: 0.2 })
 )
 torus.position.set( -0.25, 1.4, -1.5 )
-torus.castShadow = true
+torus.castShadow    = true
+torus.receiveShadow = true
 scene.add( torus )
 
 
@@ -252,7 +258,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 
 	var
 	meshColorOff = 0xDB3236,//  Red.
-	meshColorOn  = 0x3CBA54,//  Green.
+	meshColorOn  = 0xF4C20D,//  Yellow.
 	controllerMaterial = new THREE.MeshStandardMaterial({
 
 		color: meshColorOff
@@ -275,6 +281,7 @@ window.addEventListener( 'vr controller connected', function( event ){
 	controller.userData.mesh = controllerMesh//  So we can change the color later.
 	controller.add( controllerMesh )
 	castShadows( controller )
+	receiveShadows( controller )
 
 
 	//  Allow this controller to interact with DAT GUI.
