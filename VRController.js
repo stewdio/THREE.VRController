@@ -95,7 +95,28 @@ THREE.VRController = function( gamepad ){
 
 	this.gamepad = gamepad
 	this.name    = gamepad.id
-	this.dof     = 3 * ( +gamepad.pose.hasOrientation + +gamepad.pose.hasPosition )
+	this.dof     = gamepad.pose ? 3 * ( +gamepad.pose.hasOrientation + +gamepad.pose.hasPosition ) : 0
+
+
+	//  If the gamepad has a hapticActuators Array with something valid in
+	//  the first slot then we can send it an intensity (from 0 to 1) and a 
+	//  duration in milliseconds like so:
+	//    gamepad.hapticActuators[ 0 ].pulse( 0.3, 200 )
+	//  Or... we can use our own shortcut here which does NOT take a duration:
+	//    this.setVibe( 0.3 )
+	//  And why is that special? Because you can have multiple channels:
+	//    this.setVibe( 'laser', 0.2 ); this.setVibe( 'explosion', 0.9 )
+	//  Or even use this syntax for scheduling channel changes!
+	//    this.setVibe( 'engine' ).set( 0.8 )
+	//      .wait(  500 ).set( 0.1 )
+	//      .wait( 1000 ).set( 0.0 )
+
+	const vibeChannel = []
+	vibeChannel.name = ''
+	vibeChannel.intensity = 0
+	this.vibeChannels = [ vibeChannel ]
+	this.vibeChannels.intensity = 0
+	this.vibeChannels.prior = 0
 
 
 	//  Setup states so we can watch for change events.
@@ -221,28 +242,41 @@ THREE.VRController = function( gamepad ){
 	//  your own sanity. What controller is this?! What capabilities do we
 	//  think it has? This will help!
 
-	this.report = function(){ return (
+	this.inspect = function(){ return (
 
 		'#'+ gamepad.index +': '+ gamepad.id +
 		'\n\tStyle: '+ this.style +
 		'\n\tDOF: '+ this.dof +
 		'\n\tHandedness: '+ handedness +
-		'\n\tAxes: '+ axes.reduce( function( a, e, i ){
+		'\n\n\tAxes: '+ axes.reduce( function( a, e, i ){
 		
 			return a + e + ( i < axes.length - 1 ? ', ' : '' )
 		
 		}, '' ) +
+		'\n\n\tButton primary: "'+ buttonNamePrimary +'"'+
 		'\n\tButtons:'+ buttons.reduce( function( a, e ){ return (
 		
 			a +
-			'\n\t\tName: '+ e.name +
+			'\n\t\tName: "'+ e.name +'"'+
 			'\n\t\t\tValue:     '+ e.value +
 			'\n\t\t\tisTouched: '+ e.isTouched +
 			'\n\t\t\tisPressed: '+ e.isPressed +
 			'\n\t\t\tisPrimary: '+ e.isPrimary
 		
 		)}, '' ) +
-		'\n\tPrimary button: '+ buttonNamePrimary
+		'\n\n\tVibration intensity: '+ this.vibeChannels.intensity +
+		'\n\tVibration channels:'+ this.vibeChannels.reduce( function( a, e ){ return (
+		
+			a +
+			'\n\t\tName: "'+ e.name +'"'+
+			'\n\t\t\tCurrent intensity: '+ e.intensity +
+			e.reduce( function( a2, e2 ){ return (
+
+				a2 + '\n\t\t\tat time '+ e2[ 0 ] +' intensity = '+ e2[ 1 ]
+			
+			)}, '' )
+		
+		)}, '' )
 	)}
 
 
@@ -470,10 +504,136 @@ THREE.VRController.prototype.update = function(){
 	this.pollForChanges()
 
 
+	//  Do we have haptics? Do we have haptic channels? Let’s vibrate!
+
+	this.applyVibes()
+
+
 	//  If you’ve ever wanted to run the same function over and over --
 	//  once per update loop -- now’s your big chance.
 
 	if( typeof this.updateCallback === 'function' ) this.updateCallback()
+}
+
+
+
+
+    /////////////////
+   //             //
+  //   Vibrate   //
+ //             //
+/////////////////
+
+
+THREE.VRController.VIBE_TIME_MAX = 5 * 1000
+THREE.VRController.prototype.setVibe = function( name, intensity ){
+
+	if( typeof name === 'number' && intensity === undefined ){
+
+		intensity = name
+		name = ''
+	}
+	if( typeof name === 'string' ){
+
+		const 
+		controller = this,
+		o = {}
+
+
+		//  If this channel does not exist yet we must create it,
+		//  otherwise we want to remove any future commands 
+		//  while careful NOT to delete the ‘intensity’ property.
+
+		let channel = controller.vibeChannels.find( function( channel ){
+
+			return channel.name === name
+		})
+		if( channel === undefined ){
+
+			channel = []
+			channel.name = name
+			channel.intensity = 0
+			controller.vibeChannels.push( channel )
+		}
+		else channel.splice( 0 )
+
+
+		//  If we received a valid intensity then we should apply it now,
+		//  but if not we’ll just hold on to the previously reported intensity.
+		//  This allows us to reselect a channel and apply a wait() command
+		//  before applying an initial set() command!
+
+		if( typeof intensity === 'number' ) channel.intensity = intensity
+		else {
+
+			if( typeof channel.intensity === 'number' ) intensity = channel.intensity
+
+			
+			//  But if we’re SOL then we need to default to zero.
+
+			else intensity = 0
+		}
+
+		let cursor = window.performance.now()
+		o.set = function( intensity ){
+
+			channel.push([ cursor, intensity ])
+			return o
+		}
+		o.wait = function( duration ){
+
+			cursor += duration
+			return o
+		}
+		return o
+	}
+}
+THREE.VRController.prototype.renderVibes = function(){
+
+
+	//  First we need to clear away any past-due commands,
+	//  and update the current intensity value.
+
+	const 
+	now = window.performance.now(),
+	controller = this
+
+	controller.vibeChannels.forEach( function( channel ){
+
+		while( channel.length && now > channel[ 0 ][ 0 ]){
+
+			channel.intensity = channel[ 0 ][ 1 ]
+			channel.shift()
+		}
+		if( typeof channel.intensity !== 'number' ) channel.intensity = 0
+	})
+
+
+	//  Now each channel knows its current intensity so we can sum those values.
+	
+	const sum = Math.min( 1, Math.max( 0, 
+	
+		this.vibeChannels.reduce( function( sum, channel ){
+	
+			return sum + +channel.intensity
+	
+		}, 0 )
+	))
+	this.vibeChannels.intensity = sum
+	return sum
+}
+THREE.VRController.prototype.applyVibes = function(){
+
+	if( this.gamepad.hapticActuators && 
+		this.gamepad.hapticActuators[ 0 ]){
+
+		const renderedIntensity = this.renderVibes()
+		if( renderedIntensity !== this.vibeChannels.prior ){
+
+			this.gamepad.hapticActuators[ 0 ].pulse( renderedIntensity, THREE.VRController.VIBE_TIME_MAX )
+			this.vibeChannels.prior = renderedIntensity
+		}
+	}
 }
 
 
@@ -516,12 +676,6 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 	scope.controllers[ gamepad.index ] = controller
 
 
-	//  Let’s give the controller a little rumble; some haptic feedback to
-	//  let the user know it’s connected and happy.
-
-	if( hapticActuators && hapticActuators[ 0 ]) hapticActuators[ 0 ].pulse( 0.1, 300 )
-
-
 	//  Now we’ll broadcast a global connection event.
 	//  We’re not using THREE’s dispatchEvent because this event
 	//  is the means of delivering the controller instance.
@@ -529,7 +683,7 @@ THREE.VRController.onGamepadConnect = function( gamepad ){
 	//  if we don’t already have a reference to it?!
 
 	if( scope.verbosity >= 0.5 ) console.log( 'vr controller connected', controller )
-	if( scope.verbosity >= 0.7 ) console.log( controller.report() )
+	if( scope.verbosity >= 0.7 ) console.log( controller.inspect() )
 	window.setTimeout( function(){
 
 		window.dispatchEvent( new CustomEvent( 'vr controller connected', { detail: controller }))
@@ -636,11 +790,11 @@ THREE.VRController.update = function(){
 		}
 	}
 }
-THREE.VRController.report = function(){
+THREE.VRController.inspect = function(){
 
 	THREE.VRController.controllers.forEach( function( controller ){
 
-		console.log( '\n'+ controller.report() )
+		console.log( '\n'+ controller.inspect() )
 	})
 }
 
