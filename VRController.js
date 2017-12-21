@@ -627,9 +627,14 @@ THREE.VRController.prototype.applyVibes = function(){
 	if( this.gamepad.hapticActuators && 
 		this.gamepad.hapticActuators[ 0 ]){
 
-		const renderedIntensity = this.renderVibes()
-		if( renderedIntensity !== this.vibeChannels.prior ){
+		const
+		renderedIntensity = this.renderVibes(),
+		now = window.performance.now()
 
+		if( renderedIntensity !== this.vibeChannels.prior ||
+			now - this.vibeChannels.lastCommanded > THREE.VRController.VIBE_TIME_MAX / 2 ){
+
+			this.vibeChannels.lastCommanded = now
 			this.gamepad.hapticActuators[ 0 ].pulse( renderedIntensity, THREE.VRController.VIBE_TIME_MAX )
 			this.vibeChannels.prior = renderedIntensity
 		}
