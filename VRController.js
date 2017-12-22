@@ -917,7 +917,7 @@ THREE.VRController.supported = {
 			'trigger',
 
 
-			//  GRIPS
+			//  GRIP
 			//  Each Vive controller has two grip buttons, one on the left and
 			//  one on the right. They are not distinguishable -- pressing 
 			//  either one will register as a press with no knowledge of which
@@ -927,7 +927,7 @@ THREE.VRController.supported = {
 			//  isTouched: Duplicates isPressed.
 			//  isPressed: As expected.
 
-			'grips',
+			'grip',
 
 
 			//  MENU
