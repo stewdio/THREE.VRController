@@ -113,3 +113,21 @@ If you’re building WebVR experiences and targeting the
 [WebVR build of Chromium](https://webvr.info/get-chrome/) you may want to read
 my Medium post about its quirky behavior and how VRController compensates for
 it: [WebVR controllers and Chromium’s Gamepad API](https://medium.com/@stew_rtsmith/webvr-controllers-and-chromiums-gamepad-api-6c9adc633f38).
+
+
+Space Rocks!
+------------------------------------------------------------------------------
+![Space Rocks](https://github.com/moar-tech/spacerocks/raw/master/media/space-rocks.jpg "Space Rocks (WebXR)")
+
+Looking for a more complex, fleshed out example of VRController in action?
+Play [Space Rocks](https://spacerocks.moar.io "Space Rocks (WebXR)") now at 
+[https://spacerocks.moar.io](https://spacerocks.moar.io "Space Rocks (WebXR)")
+You can read more about it on 
+[Medium](https://medium.com/@stew_rtsmith/space-rocks-webvr-d4035d0ac429)
+or check out the 
+[code repository](https://github.com/moar-tech/spacerocks).
+Look for VRController-related bits in
+[`/scripts/player.js`](https://github.com/moar-tech/spacerocks/blob/master/scripts/player.js).
+
+
+
