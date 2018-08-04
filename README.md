@@ -129,5 +129,11 @@ or check out the
 Look for VRController-related bits in
 [`/scripts/player.js`](https://github.com/moar-tech/spacerocks/blob/master/scripts/player.js).
 
+And for the full technical breakdown, including multi-channel haptic 
+feedback, button handling, and attaching visuals to controllers, see
+[Space Rocks—WebXR tech deep dive](https://medium.com/@stew_rtsmith/space-rocks-technical-deep-dive-9bf67fb8a467).
+
+[![Space Rocks technical deep dive](https://cdn-images-1.medium.com/max/2000/1*TjqlHICRPMCzR68SggeW-g.jpeg "Space Rocks—WebXR tech deep dive")](https://medium.com/@stew_rtsmith/space-rocks-technical-deep-dive-9bf67fb8a467)
+
 
 
